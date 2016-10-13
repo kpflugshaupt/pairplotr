@@ -17,12 +17,13 @@ def compare_data(df,plot_vars=[]):
     # Use all features if not explicitly provided by user
     if not plot_vars:
         plot_vars = list(df.columns)
-    
+        
     # Count number of features
-    
-    
+    number_features = len(plot_vars)
     
     # Obtain feature types
+    
+    
     
     # Form blank pairgrid
     
