@@ -3,8 +3,11 @@ sns.set(style="white",color_codes=True)
 import inspect
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 
-def compare_data(df,plot_vars=[]):
+def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.3,
+                 num_bars=20,palette=['grey','orange','red'],fig_size=60,
+                 fig_aspect=1):
     """
     Outputs a modified pair grid where data plots takes this form:
     
@@ -18,22 +21,95 @@ def compare_data(df,plot_vars=[]):
     if not plot_vars:
         plot_vars = list(df.columns)
         
+    # Check that data_types are specified
+    if not data_types:
+        raise Exception('Dictionary of feature:data types keyword argument, data_types, must be specified.')
+    
+    # Keep only the plotting Filter plot_vars so only those included in data_types is included
+    plot_vars = [plot_var for plot_var in plot_vars if plot_var in data_types]
+    
     # Count number of features
     number_features = len(plot_vars)
     
-    # Obtain feature types
-    
-    
-    
     # Form blank pairgrid
+    fig, axes = plt.subplots(nrows=number_features, ncols=number_features,figsize=[fig_size,fig_size*fig_aspect])
+    for axis_row_ind in range(number_features):
+        for axis_column_ind in range(number_features):
+            row_feature = plot_vars[axis_row_ind]
+            col_feature = plot_vars[axis_column_ind]
+            
+            row_type = data_types[row_feature]
+            col_type = data_types[col_feature]
+            
+            if axis_row_ind == axis_column_ind:
+                if row_type == 'numerical':
+                    x = df[row_feature].values
+                    y_pos = np.arange(len(x))
+                    axes[axis_row_ind][axis_column_ind].hist(x,alpha=bar_alpha,bins=20,
+                                                             color=[palette[0]])
+                elif row_type == 'category':
+                    unique_feature_values = list(df[row_feature].value_counts().index.values)
+                    unique_feature_value_counts = df[row_feature].value_counts().values
+                    
+                    ind = np.arange(len(unique_feature_values))    # the x locations for the groups
+                    axes[axis_row_ind][axis_column_ind].bar(ind,unique_feature_value_counts, 
+                                                            color=[palette[0]],alpha=bar_alpha)
+            elif row_type == 'category' and col_type == 'numerical':
+                # Figure out unique category values
+                unique_feature_values = list(df[row_feature].value_counts().index.values)
+                
+                x = [df[col_feature][df[row_feature]==unique_feature_value].values for unique_feature_value in unique_feature_values]
+                
+                axes[axis_row_ind][axis_column_ind].hist(x,alpha=bar_alpha,bins=20,
+                                                         label=unique_feature_values)
+                
+            elif row_type == 'category' and col_type == 'category':
+                pass
+            else:
+                pass
+            
+    plt.tight_layout()
+            
+
+
+#                     N = 5
+#                     menMeans = (20, 35, 30, 35, 27)
+#                     womenMeans = (25, 32, 34, 20, 25)
+#                     menStd = (2, 3, 4, 1, 2)
+#                     womenStd = (3, 5, 2, 3, 3)
+#                     ind = np.arange(N)    # the x locations for the groups
+#                     width = 0.35       # the width of the bars: can also be len(x) sequence
+
+                    
+#                     p1 = plt.bar(ind, menMeans, width, color='r', yerr=menStd)
+#                     p2 = plt.bar(ind, womenMeans, width, color='y',
+#                                  bottom=menMeans, yerr=womenStd)
+
+#                     plt.ylabel('Scores')
+#                     plt.title('Scores by group and gender')
+#                     plt.xticks(ind + width/2., ('G1', 'G2', 'G3', 'G4', 'G5'))
+#                     plt.yticks(np.arange(0, 81, 10))
+#                     plt.legend((p1[0], p2[0]), ('Men', 'Women'))
+
+#                     plt.show()
+                    
+                
+                
+
+                
+#                 plt.hist,alpha=bar_alpha,bins=num_bars
+#                 colors = ['red', 'tan', 'lime']
+
+#                 ax0.hist(x, n_bins, normed=1, histtype='bar', color=colors, label=colors)
+#                 ax0.hist(x, n_bins, normed=1, histtype='bar', color=colors, label=colors)
+      
     
     # Iterate through each block
         # Figure out what type of plot to make based on features
         # Create plot for that position
         # Add legend (possibly in the plot or far to the right or left)
-    
-    pass
-    
+
+
 def continuous_pair_grid_vs_label(df,plot_vars=[],hue_feature=[],scatter_alpha=0.2,
                                   bar_alpha=0.3,num_bars=20,scatter_size=45,
                                   palette=['grey','orange','red'],fig_size=6,fig_aspect=1,
