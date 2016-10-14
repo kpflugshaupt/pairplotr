@@ -8,7 +8,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import pandas as pd
 
-def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.3,
+def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                  num_bars=20,palette=['grey','orange','red'],fig_size=60,
                  fig_aspect=1):
     """
@@ -20,6 +20,116 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.3,
     category 1 vs category 2: distribution of category 2 colored by category 1
     continuous vs category: As yet undetermined... probably blank
     """
+    ###############################################################################################################
+    #g = sns.PairGrid(data,vars=plot_vars,hue=hue_feature,
+    #                 size=fig_size,aspect=fig_aspect,palette=palette)
+    ###############################################################################################################
+    #
+    #class PairGrid(Grid):
+    #    """Subplot grid for plotting pairwise relationships in a dataset."""
+    #
+    #    def __init__(self, data, hue=None, hue_order=None, palette=None,
+    #                 hue_kws=None, vars=None, x_vars=None, y_vars=None,
+    #                 diag_sharey=True, size=2.5, aspect=1,
+    #                 despine=True, dropna=True):
+    #
+    #        # Sort out the variables that define the grid
+    #        if vars is not None:
+    #            x_vars = list(vars)
+    #            y_vars = list(vars)
+    #        elif (x_vars is not None) or (y_vars is not None):
+    #            if (x_vars is None) or (y_vars is None):
+    #                raise ValueError("Must specify `x_vars` and `y_vars`")
+    #        else:
+    #            numeric_cols = self._find_numeric_cols(data)
+    #            x_vars = numeric_cols
+    #            y_vars = numeric_cols
+    #
+    #        if np.isscalar(x_vars):
+    #            x_vars = [x_vars]
+    #        if np.isscalar(y_vars):
+    #            y_vars = [y_vars]
+    #
+    #        self.x_vars = list(x_vars)
+    #        self.y_vars = list(y_vars)
+    #        self.square_grid = self.x_vars == self.y_vars
+    #
+    #        # Create the figure and the array of subplots
+    #        figsize = len(x_vars) * size * aspect, len(y_vars) * size
+    #
+    #        fig, axes = plt.subplots(len(y_vars), len(x_vars),
+    #                                 figsize=figsize,
+    #                                 sharex="col", sharey="row",
+    #                                 squeeze=False)
+    #
+    #        self.fig = fig
+    #        self.axes = axes
+    #        self.data = data
+    #
+    #        # Save what we are going to do with the diagonal
+    #        self.diag_sharey = diag_sharey
+    #        self.diag_axes = None
+    #
+    #        # Label the axes
+    #        self._add_axis_labels()
+    #
+    #        # Sort out the hue variable
+    #        self._hue_var = hue
+    #        if hue is None:
+    #            self.hue_names = ["_nolegend_"]
+    #            self.hue_vals = pd.Series(["_nolegend_"] * len(data),
+    #                                      index=data.index)
+    #        else:
+    #            hue_names = utils.categorical_order(data[hue], hue_order)
+    #            if dropna:
+    #                # Filter NA from the list of unique hue names
+    #                hue_names = list(filter(pd.notnull, hue_names))
+    #            self.hue_names = hue_names
+    #            self.hue_vals = data[hue]
+    #
+    #        # Additional dict of kwarg -> list of values for mapping the hue var
+    #        self.hue_kws = hue_kws if hue_kws is not None else {}
+    #
+    #        self.palette = self._get_palette(data, hue, hue_order, palette)
+    #        self._legend_data = {}
+    #
+    #        # Make the plot look nice
+    #        if despine:
+    #            utils.despine(fig=fig)
+    #        fig.tight_layout()
+    #
+    #
+    ## Add histograms to diagonals
+    #g.map_diag(plt.hist,alpha=bar_alpha,bins=num_bars)
+    #
+    ## Plot median lines to histograms in diagonals if specified
+    #def plot_median(x,color=[],label=[]): 
+    #    plt.axvline(x.median(),alpha=1.0,label=label,color=color)
+    #if plot_medians:        
+    #    g.map_diag(plot_median)
+    #
+    #g.map_offdiag(plt.scatter,alpha=scatter_alpha,s=scatter_size)
+    #
+    ## Add legend if there is a hue feature
+    #if hue_feature:
+    #    g.add_legend();    
+    #
+    
+    ##############################################################################################################
+    
+    def get_color_val(ind,num_series):
+        colormap = 'autumn'
+        color_map = plt.get_cmap(colormap)
+        
+        # Calculate color
+        if not ind:
+            colorVal = 'gray'
+        else:
+            colorVal = color_map(2.5*(ind-1)/float(num_series))
+            
+        return colorVal
+    
+    
     # Use all features if not explicitly provided by user
     if not plot_vars:
         plot_vars = list(df.columns)
@@ -35,7 +145,9 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.3,
     number_features = len(plot_vars)
     
     # Set colormap
-    colormap = 'cool'
+    #cmap = mpl.cm.autumn
+    #for i, y in enumerate(data.T):
+    #    plt.plot(x, y, color=cmap(i / float(nsteps)))
     
     # Form blank pairgrid
     fig, axes = plt.subplots(nrows=number_features, ncols=number_features,figsize=[fig_size,fig_size*fig_aspect])
@@ -48,13 +160,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.3,
             col_type = data_types[col_feature]
             
             if axis_row_ind == axis_column_ind:
-                
-                # Calculate color for bars
-                values = range(1)                
-                jet = plt.get_cmap(colormap) 
-                cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
-                scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
-                colorVal = scalarMap.to_rgba(values[0])
+                colorVal = get_color_val(0,1)
                 
                 if row_type == 'numerical':
                     x = df[row_feature].values
@@ -72,52 +178,54 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.3,
                 # Figure out unique category values
                 unique_feature_values = list(df[row_feature].value_counts().index.values)
                 
-                x = [df[col_feature][df[row_feature]==unique_feature_value].values for unique_feature_value in unique_feature_values]
+                
+                bins = np.linspace(df[col_feature].min(),df[col_feature].max(),num_bars)
                 
                 for unique_feature_value_ind,unique_feature_value in enumerate(unique_feature_values):
-                    # Calculate color for bars
-                    values = range(len(unique_feature_values))                
-                    jet = plt.get_cmap(colormap) 
-                    cNorm  = colors.Normalize(vmin=0,vmax=values[-1])
-                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
-                    colorVal = scalarMap.to_rgba(values[unique_feature_value_ind])
+                    colorVal = get_color_val(unique_feature_value_ind,len(unique_feature_values))
+                    
+                    ## Calculate color
+                    #if not unique_feature_value_ind:
+                    #    colorVal = 'gray'
+                    #else:
+                    #    colorVal = color_map((2.0*unique_feature_value_ind-1)/float(len(unique_feature_values)))
                     
                     data = df[col_feature][df[row_feature]==unique_feature_value].values
                     
-                    axes[axis_row_ind][axis_column_ind].hist(data,alpha=bar_alpha,bins=20,
+                    axes[axis_row_ind][axis_column_ind].hist(data,alpha=bar_alpha,bins=bins,
                                                              label=unique_feature_values,color=colorVal)
                     
-                ## loop through all patch objects and collect ones at same x
-                #numLines = len(unique_row_feature_values)
-                #figAxes = axes[axis_row_ind][axis_column_ind]
-                #patchObjs = figAxes.patches
-                ##patchObjs = figAxes[-1].patches
-                #
-                ## Create dictionary of lists containg patch objects at the same x-postion
-                #patchDict = {}
-                #for patch in patchObjs:
-                #    patchXPosition = patch.get_x()
-                #    
-                #    # Initialize x-position list in patch dictionary if not present
-                #    if patchXPosition not in patchDict:
-                #        patchDict[patchXPosition] = []
-                #    
-                #    # Add dictionary object
-                #    patchDict[patchXPosition].append(patch)
-                #
-                ## Custom sort function, in reverse order of height
-                #def yHeightSort(i,j):
-                #    if j.get_height() > i.get_height():
-                #        return 1
-                #    else:
-                #        return -1
-                #
-                ## loop through sort assign z-order based on sort
-                #for x_pos, patches in patchDict.iteritems():
-                #    if len(patches) == 1:
-                #        continue
-                #    patches.sort(cmp=yHeightSort)
-                #    [patch.set_zorder(patches.index(patch)+numLines) for patch in patches]                
+                # loop through all patch objects and collect ones at same x
+                numLines = len(unique_row_feature_values)
+                figAxes = axes[axis_row_ind][axis_column_ind]
+                patchObjs = figAxes.patches
+                #patchObjs = figAxes[-1].patches
+                
+                # Create dictionary of lists containg patch objects at the same x-postion
+                patchDict = {}
+                for patch in patchObjs:
+                    patchXPosition = patch.get_x()
+                    
+                    # Initialize x-position list in patch dictionary if not present
+                    if patchXPosition not in patchDict:
+                        patchDict[patchXPosition] = []
+                    
+                    # Add dictionary object
+                    patchDict[patchXPosition].append(patch)
+                
+                # Custom sort function, in reverse order of height
+                def yHeightSort(i,j):
+                    if j.get_height() > i.get_height():
+                        return 1
+                    else:
+                        return -1
+                
+                # loop through sort assign z-order based on sort
+                for x_pos, patches in patchDict.iteritems():
+                    if len(patches) == 1:
+                        continue
+                    patches.sort(cmp=yHeightSort)
+                    [patch.set_zorder(patches.index(patch)+numLines) for patch in patches]                
                 
             elif row_type == 'category' and col_type == 'category':
                 # Get row feature value counts
@@ -149,12 +257,20 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.3,
                 
                 
                 for unique_row_feature_value_ind,unique_row_feature_value in enumerate(unique_row_feature_values):
-                    # Calculate color for bars
-                    values = range(len(unique_row_feature_values))                
-                    jet = plt.get_cmap(colormap) 
-                    cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
-                    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
-                    colorVal = scalarMap.to_rgba(values[unique_row_feature_value_ind])
+                    ## Calculate color for bars
+                    #values = range(len(unique_row_feature_values))                
+                    #jet = plt.get_cmap(colormap) 
+                    #cNorm  = colors.Normalize(vmin=0, vmax=values[-1])
+                    #scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
+                    #colorVal = scalarMap.to_rgba(values[unique_row_feature_value_ind])
+
+                    colorVal = get_color_val(unique_row_feature_value_ind,len(unique_row_feature_values))
+
+                    #if not unique_row_feature_value_ind:
+                    #    colorVal = 'gray'
+                    #else:
+                    #    colorVal = color_map((2.0*unique_row_feature_value_ind-1)/float(len(unique_feature_values)))
+                    
                     
                     # Get data for current row_feature value and column_feature
                     data = all_value_counts[str(unique_row_feature_value)]
