@@ -118,14 +118,14 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     ##############################################################################################################
     
     def get_color_val(ind,num_series):
-        colormap = 'autumn'
+        colormap = 'rainbow'
         color_map = plt.get_cmap(colormap)
         
         # Calculate color
         if not ind:
             colorVal = 'gray'
         else:
-            colorVal = color_map(2.5*(ind-1)/float(num_series))
+            colorVal = color_map((ind-1)/float(num_series+1))
             
         return colorVal
     
@@ -463,7 +463,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
 def continuous_pair_grid_vs_label(df,plot_vars=[],hue_feature=[],scatter_alpha=0.2,
                                   bar_alpha=0.3,num_bars=20,scatter_size=45,
                                   palette=['grey','orange','red'],fig_size=6,fig_aspect=1,
-                                  filter_feature=[],filter_feature_value=[],plot_medians=False,
+                                  filter_feature=[],filter_feature_value=[],plot_medians=False,                                  
                                   large_text_size=20,small_text_size=16):
 
     """
@@ -511,6 +511,168 @@ def continuous_pair_grid_vs_label(df,plot_vars=[],hue_feature=[],scatter_alpha=0
     if hue_feature:
         g.add_legend();
         
+def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels=[],
+                            colors=[],alpha=0.6,figure_size=[12,6],title=[],y_label=[],
+                            num_bars=20,plot_medians=True,plot_quantiles=False):
+    """
+    Plots the distributions of the input_feature for each output_label_feature value
+    """
+    # Form automatic title if not provided
+    if not title:
+        title = '%s distributions by %s labels'%(input_feature,output_label_feature)
+        
+    # Set font attributes
+    large_text_size = 14
+    small_text_size = 12
+    
+    # Set axis/legend labels
+    if y_label:
+        y_label = output_label_feature
+    else:
+        y_label = 'Frequency'
+    x_label = input_feature
+        
+    # Obtain unique output label feature values
+    unique_output_label_feature_values = df[output_label_feature].value_counts().sort_index().index.values
+
+    # Set bin bounds for cleaner plots
+    bins = np.linspace(df[input_feature].min(),df[input_feature].max(),num_bars)
+    
+    # Plot data
+    cmap = matplotlib.cm.autumn
+    axes = []
+    lines = []
+    for unique_output_label_feature_value_ind,unique_output_label_feature_value in enumerate(unique_output_label_feature_values):
+        # Obtain current data
+        current_distribution = df[input_feature][df[output_label_feature]==unique_output_label_feature_value]
+        
+        # Set series color
+        if colors:
+            series_color = colors[unique_output_label_feature_value_ind]
+        else:
+            series_color = cmap(unique_output_label_feature_value_ind)
+                    
+        # Plot histogram and save axis
+        axes.append(current_distribution.plot(kind='hist',color=series_color,
+                                              alpha=alpha,figsize=figure_size,bins=bins))
+        
+    # Obtain data handles for use in legend
+    h,_ = axes[-1].get_legend_handles_labels()
+            
+    # Plot median lines if desired
+    if plot_medians:
+        for unique_output_label_feature_value_ind,unique_output_label_feature_value in enumerate(unique_output_label_feature_values):
+            # Obtain current data
+            current_distribution = df[input_feature][df[output_label_feature]==unique_output_label_feature_value]
+            
+            # Set series color
+            if colors:
+                series_color = colors[unique_output_label_feature_value_ind]
+            else:
+                series_color = cmap(unique_output_label_feature_value_ind)
+                
+            # Plot median lines to histograms in diagonals if specified
+            axes[-1].axvline(current_distribution.median(),alpha=0.9,color=series_color)
+
+    # Plot 0, 25, 75, and 100% quartiles if desired
+    if plot_quantiles:
+        for unique_output_label_feature_value_ind,unique_output_label_feature_value in enumerate(unique_output_label_feature_values):
+            # Obtain current data
+            current_distribution = df[input_feature][df[output_label_feature]==unique_output_label_feature_value]
+            
+            # Set series color
+            if colors:
+                series_color = colors[unique_output_label_feature_value_ind]
+            else:
+                series_color = cmap(unique_output_label_feature_value_ind)
+                
+            # Plot median lines to histograms in diagonals if specified
+            axes[-1].axvline(current_distribution.quantile(0.25),alpha=0.5,label=unique_output_label_feature_value,color=series_color,linestyle='--')
+            axes[-1].axvline(current_distribution.quantile(0.75),alpha=0.5,label=unique_output_label_feature_value,color=series_color,linestyle='--')
+            axes[-1].axvline(current_distribution.quantile(0.0),alpha=0.25,label=unique_output_label_feature_value,color=series_color,linestyle='--')
+            axes[-1].axvline(current_distribution.quantile(1.0),alpha=0.25,label=unique_output_label_feature_value,color=series_color,linestyle='--')
+                
+    # Set title, x and y labels, and legend values
+    plt.title(title,size=large_text_size)
+
+    # Place x- and y-labels
+    plt.xlabel(x_label,size=small_text_size)
+    plt.ylabel(y_label,size=small_text_size)
+    
+    # Place legend
+    if output_labels:
+        unique_output_label_feature_values
+        legend_labels = output_labels
+        plt.legend(h,unique_output_label_feature_values,loc='center left',bbox_to_anchor=(1, 0.5))
+        #plt.legend(legend_labels,loc='center left',bbox_to_anchor=(1, 0.5))
+    else:
+        plt.legend(loc='right',bbox_to_anchor=(1, 0.5))
+
+    # Modify plot limits so last gridline visible
+    ax = axes[0]
+    yticks, yticklabels = plt.yticks()
+    ymin = yticks[0] #(3*xticks[0] - xticks[1])/2.
+    ymax = 1.1*(3*yticks[-1]-yticks[-2])/2.
+    ax.set_ylim(ymin, ymax)    
+
+    # Set left frame attributes    
+    ax.spines['bottom'].set_linewidth(1.0)
+    ax.spines['bottom'].set_color('gray')
+    
+    # Remove all but bottom frame line    
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+
+    # Add grid
+    ax.yaxis.grid(True,linestyle='--',linewidth=1)
+    
+    # Place smallest bars in front
+    ## loop through all patch objects and collect ones at same x
+    
+    ## Obtain number of unique data series
+    num_lines = len(unique_output_label_feature_values)
+    
+    ## Create dictionary of lists containg patch objects at the same x-postion
+    patch_dict = {}
+    for patch in ax.patches:
+        # Get current patch position
+        patch_x_position = patch.get_x()
+        
+        # Initialize x-position list in patch dictionary if not present
+        if patch_x_position not in patch_dict:
+            patch_dict[patch_x_position] = []
+        
+        # Add dictionary object
+        patch_dict[patch_x_position].append(patch)
+    
+    ## loop through sort assign z-order based on sort
+    for x_pos, patches in patch_dict.iteritems():
+        # Check that there is more than one patch
+        if len(patches) == 1:
+            continue
+        
+        # Sort patches
+        patches.sort(cmp=patch_height_sort)
+        
+        # Set order of patches
+        for patch in patches:
+            patch.set_zorder(patches.index(patch)+num_lines) 
+            
+    # Show plot
+    plt.show()        
+    
+
+def patch_height_sort(patch_one,patch_two):
+    """
+    Returns 1 flag if second patch higher
+    """
+    if patch_two.get_height() > patch_one.get_height():
+        return 1
+    else:
+        return -1
+
+    
 def plot_label_versus_label(df,input_label_feature,output_label_feature,output_labels=[],
                             colors=[],alpha=0.6,figure_size=[12,6],x_label=[],title=[]):
     # Form automatic title if not provided
@@ -530,7 +692,7 @@ def plot_label_versus_label(df,input_label_feature,output_label_feature,output_l
     label_by_label = df[[input_label_feature,output_label_feature]].pivot_table(columns=[output_label_feature],index=[input_label_feature],aggfunc=len)
 
     # Plot pivot table as stacked column chart
-    label_by_label.plot(kind='barh',stacked=True,color=colors,alpha=alpha,figsize=figure_size)
+    ax = label_by_label.plot(kind='barh',stacked=True,color=colors,alpha=alpha,figsize=figure_size)
 
     # Set title, x and y labels, and legend values
     plt.title(title,size=large_text_size)
@@ -540,8 +702,27 @@ def plot_label_versus_label(df,input_label_feature,output_label_feature,output_l
 
     if output_labels:
         legend_labels = output_labels
-        plt.legend(legend_labels,loc='best')
+        plt.legend(legend_labels,loc='right',bbox_to_anchor=(1.05, 0.5))
     else:
-        plt.legend(loc='best')
-        
+        plt.legend(loc='right',bbox_to_anchor=(1.05, 0.5))
+
+    # Modify plot limits so last gridline visible
+    xticks, xticklabels = plt.xticks()
+    xmin = xticks[0] #(3*xticks[0] - xticks[1])/2.
+    xmax = (3*xticks[-1] - xticks[-2])/2.
+    ax.set_xlim(xmin, xmax)    
+
+    # Set left frame attributes    
+    ax.spines['left'].set_linewidth(1.0)
+    ax.spines['left'].set_color('gray')
+    
+    # Remove all but frame line
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+    # Add grid
+    ax.xaxis.grid(True,linestyle='--',linewidth=1)
+    
+    # Hide the right and top spines        
     plt.show()
