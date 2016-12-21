@@ -8,78 +8,6 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import pandas as pd
 
-def infer_feature_types(df,suppress_report=False):
-    """
-    Returns dictionary of features and corresponding datatypes 
-    (Either 'category' or 'numerical') given a dataframe
-    
-    This can easily misclassify integers, since they can represent 
-    either counts or categories. Additionally, one should try to 
-    avoid using floats as integers.
-    
-    A summary is printed at the end so the user can manually modify
-    the resulting dictionary.        
-    """
-    # Initialize output dictionary
-    data_types = {}
-
-    # Consider each feature
-    for feature in list(df.columns):
-        # Obtain unique feature values
-        unique_feature_values = list(set(df[feature]))
-        
-        # Obtain unique feature types
-        unique_feature_types = list(set(type(unique_item) for unique_item in unique_feature_values))
-
-        # Check for mixed types within feature
-        if len(unique_feature_types) != 1:
-            raise Exception("Mixed types in feature '%s' encountered. This is presently unsupported."%(feature))
-
-        # Check that all input types are expected
-        unique_feature_type = unique_feature_types[0]
-        if not (unique_feature_type is not str or unique_feature_type is not int or unique_feature_type is not np.int64 or unique_feature_type is not float or unique_feature_type is not np.float64):
-            raise Exception("Feature '%s' is not of type str, int, numpy.int64, float, or numpy.float64. Its listed feature is %s This is currently unsupported"%(feature,unique_feature_type))
-        
-        # Ignore features that appear to be ids, though warn user
-        if unique_feature_type is str or unique_feature_type is int or unique_feature_type is np.int64:
-            if len(unique_feature_values) != len(df[feature]):
-                data_types[feature] = 'category'
-            else:
-                if not suppress_report:
-                    print "WARNING: feature '%s' appears to be an id and will not be included in the plot"%(feature)
-        else:
-            data_types[feature] = 'numerical'
-    
-    # Print report
-    if not suppress_report:
-        print ''
-        print 40*'-'
-        print 'Data type\tFeature'
-        print 40*'-'    
-        for key in data_types:
-            print '%s\t%s'%(data_types[key],key)
-        print 40*'-'
-    
-    # Return
-    return data_types
-
-def get_color_val(ind,num_series):
-    colormap = 'rainbow'
-    color_map = plt.get_cmap(colormap)
-    
-    custom_map = ['grey','orange','red','purple','blue','cyan','lime','yellow','black']
-    
-    # Calculate color
-    if num_series > len(custom_map):
-        if not ind:
-            colorVal = 'gray'
-        else:
-            colorVal = color_map((ind-1)/float(num_series+1))
-    else:
-        colorVal = custom_map[ind]
-    
-    return colorVal
-
 def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                  num_bars=20,palette=['grey','orange','red'],fig_size=60,
                  fig_aspect=1):
@@ -167,11 +95,12 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 axes[-1][-1].tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='off')
                 
             # Set axis labels
+            label_padding = 5
             if not axis_column_ind:
-                axes[-1][-1].set_ylabel(row_feature,color=text_and_line_color,size=text_font_size,labelpad=25) #labelpad=25,
+                axes[-1][-1].set_ylabel(row_feature,color=text_and_line_color,size=text_font_size,labelpad=label_padding)
             
             if axis_row_ind == number_features-1:
-                axes[-1][-1].set_xlabel(col_feature,color=text_and_line_color,size=text_font_size,labelpad=25) #,labelpad=25
+                axes[-1][-1].set_xlabel(col_feature,color=text_and_line_color,size=text_font_size,labelpad=label_padding) 
 
             # Set axis labels if on left and/or bottom edges
             if not axis_column_ind:
@@ -205,8 +134,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     if not axis_column_ind:
                         axes[-1][-1].set_yticks(ind)
                         axes[-1][-1].set_yticklabels(unique_feature_values,size=label_size)
-                        
-                        
+                                                
             elif row_type == 'category' and col_type == 'numerical':
                 # Figure out unique category values
                 unique_feature_values = list(df[row_feature].value_counts().index.values)
@@ -310,146 +238,78 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
 
             else:
                 pass
-            
-            
-    plt.tight_layout()
+
+def infer_feature_types(df,suppress_report=False):
+    """
+    Returns dictionary of features and corresponding datatypes 
+    (Either 'category' or 'numerical') given a dataframe
     
-    ###############################################################################################################
-    #g = sns.PairGrid(data,vars=plot_vars,hue=hue_feature,
-    #                 size=fig_size,aspect=fig_aspect,palette=palette)
-    ###############################################################################################################
-    #
-    #class PairGrid(Grid):
-    #    """Subplot grid for plotting pairwise relationships in a dataset."""
-    #
-    #    def __init__(self, data, hue=None, hue_order=None, palette=None,
-    #                 hue_kws=None, vars=None, x_vars=None, y_vars=None,
-    #                 diag_sharey=True, size=2.5, aspect=1,
-    #                 despine=True, dropna=True):
-    #
-    #        # Sort out the variables that define the grid
-    #        if vars is not None:
-    #            x_vars = list(vars)
-    #            y_vars = list(vars)
-    #        elif (x_vars is not None) or (y_vars is not None):
-    #            if (x_vars is None) or (y_vars is None):
-    #                raise ValueError("Must specify `x_vars` and `y_vars`")
-    #        else:
-    #            numeric_cols = self._find_numeric_cols(data)
-    #            x_vars = numeric_cols
-    #            y_vars = numeric_cols
-    #
-    #        if np.isscalar(x_vars):
-    #            x_vars = [x_vars]
-    #        if np.isscalar(y_vars):
-    #            y_vars = [y_vars]
-    #
-    #        self.x_vars = list(x_vars)
-    #        self.y_vars = list(y_vars)
-    #        self.square_grid = self.x_vars == self.y_vars
-    #
-    #        # Create the figure and the array of subplots
-    #        figsize = len(x_vars) * size * aspect, len(y_vars) * size
-    #
-    #        fig, axes = plt.subplots(len(y_vars), len(x_vars),
-    #                                 figsize=figsize,
-    #                                 sharex="col", sharey="row",
-    #                                 squeeze=False)
-    #
-    #        self.fig = fig
-    #        self.axes = axes
-    #        self.data = data
-    #
-    #        # Save what we are going to do with the diagonal
-    #        self.diag_sharey = diag_sharey
-    #        self.diag_axes = None
-    #
-    #        # Label the axes
-    #        self._add_axis_labels()
-    #
-    #        # Sort out the hue variable
-    #        self._hue_var = hue
-    #        if hue is None:
-    #            self.hue_names = ["_nolegend_"]
-    #            self.hue_vals = pd.Series(["_nolegend_"] * len(data),
-    #                                      index=data.index)
-    #        else:
-    #            hue_names = utils.categorical_order(data[hue], hue_order)
-    #            if dropna:
-    #                # Filter NA from the list of unique hue names
-    #                hue_names = list(filter(pd.notnull, hue_names))
-    #            self.hue_names = hue_names
-    #            self.hue_vals = data[hue]
-    #
-    #        # Additional dict of kwarg -> list of values for mapping the hue var
-    #        self.hue_kws = hue_kws if hue_kws is not None else {}
-    #
-    #        self.palette = self._get_palette(data, hue, hue_order, palette)
-    #        self._legend_data = {}
-    #
-    #        # Make the plot look nice
-    #        if despine:
-    #            utils.despine(fig=fig)
-    #        fig.tight_layout()
-    #
-    #
-    ## Add histograms to diagonals
-    #g.map_diag(plt.hist,alpha=bar_alpha,bins=num_bars)
-    #
-    ## Plot median lines to histograms in diagonals if specified
-    #def plot_median(x,color=[],label=[]): 
-    #    plt.axvline(x.median(),alpha=1.0,label=label,color=color)
-    #if plot_medians:        
-    #    g.map_diag(plot_median)
-    #
-    #g.map_offdiag(plt.scatter,alpha=scatter_alpha,s=scatter_size)
-    #
-    ## Add legend if there is a hue feature
-    #if hue_feature:
-    #    g.add_legend();    
-    #
+    This can easily misclassify integers, since they can represent 
+    either counts or categories. Additionally, one should try to 
+    avoid using floats as integers.
     
-    ##############################################################################################################    
-            
+    A summary is printed at the end so the user can manually modify
+    the resulting dictionary.        
+    """
+    # Initialize output dictionary
+    data_types = {}
 
+    # Consider each feature
+    for feature in list(df.columns):
+        # Obtain unique feature values
+        unique_feature_values = list(set(df[feature]))
+        
+        # Obtain unique feature types
+        unique_feature_types = list(set(type(unique_item) for unique_item in unique_feature_values))
 
-#                     N = 5
-#                     menMeans = (20, 35, 30, 35, 27)
-#                     womenMeans = (25, 32, 34, 20, 25)
-#                     menStd = (2, 3, 4, 1, 2)
-#                     womenStd = (3, 5, 2, 3, 3)
-#                     ind = np.arange(N)    # the x locations for the groups
-#                     width = 0.35       # the width of the bars: can also be len(x) sequence
+        # Check for mixed types within feature
+        if len(unique_feature_types) != 1:
+            raise Exception("Mixed types in feature '%s' encountered. This is presently unsupported."%(feature))
 
-                    
-#                     p1 = plt.bar(ind, menMeans, width, color='r', yerr=menStd)
-#                     p2 = plt.bar(ind, womenMeans, width, color='y',
-#                                  bottom=menMeans, yerr=womenStd)
-
-#                     plt.ylabel('Scores')
-#                     plt.title('Scores by group and gender')
-#                     plt.xticks(ind + width/2., ('G1', 'G2', 'G3', 'G4', 'G5'))
-#                     plt.yticks(np.arange(0, 81, 10))
-#                     plt.legend((p1[0], p2[0]), ('Men', 'Women'))
-
-#                     plt.show()
-                    
-                
-                
-
-                
-#                 plt.hist,alpha=bar_alpha,bins=num_bars
-#                 colors = ['red', 'tan', 'lime']
-
-#                 ax0.hist(x, n_bins, normed=1, histtype='bar', color=colors, label=colors)
-#                 ax0.hist(x, n_bins, normed=1, histtype='bar', color=colors, label=colors)
-      
+        # Check that all input types are expected
+        unique_feature_type = unique_feature_types[0]
+        if not (unique_feature_type is not str or unique_feature_type is not int or unique_feature_type is not np.int64 or unique_feature_type is not float or unique_feature_type is not np.float64):
+            raise Exception("Feature '%s' is not of type str, int, numpy.int64, float, or numpy.float64. Its listed feature is %s This is currently unsupported"%(feature,unique_feature_type))
+        
+        # Ignore features that appear to be ids, though warn user
+        if unique_feature_type is str or unique_feature_type is int or unique_feature_type is np.int64:
+            if len(unique_feature_values) != len(df[feature]):
+                data_types[feature] = 'category'
+            else:
+                if not suppress_report:
+                    print "WARNING: feature '%s' appears to be an id and will not be included in the plot"%(feature)
+        else:
+            data_types[feature] = 'numerical'
     
-    # Iterate through each block
-        # Figure out what type of plot to make based on features
-        # Create plot for that position
-        # Add legend (possibly in the plot or far to the right or left)
+    # Print report
+    if not suppress_report:
+        print ''
+        print 40*'-'
+        print 'Data type\tFeature'
+        print 40*'-'    
+        for key in data_types:
+            print '%s\t%s'%(data_types[key],key)
+        print 40*'-'
+    
+    # Return
+    return data_types
 
+def get_color_val(ind,num_series):
+    colormap = 'rainbow'
+    color_map = plt.get_cmap(colormap)
+    
+    custom_map = ['grey','orange','red','purple','blue','cyan','lime','yellow','black']
+    
+    # Calculate color
+    if num_series > len(custom_map):
+        if not ind:
+            colorVal = 'gray'
+        else:
+            colorVal = color_map((ind-1)/float(num_series+1))
+    else:
+        colorVal = custom_map[ind]
+    
+    return colorVal
 
 def continuous_pair_grid_vs_label(df,plot_vars=[],hue_feature=[],scatter_alpha=0.2,
                                   bar_alpha=0.3,num_bars=20,scatter_size=45,
