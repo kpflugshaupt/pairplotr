@@ -298,7 +298,7 @@ def get_color_val(ind,num_series):
     colormap = 'rainbow'
     color_map = plt.get_cmap(colormap)
     
-    custom_map = ['grey','orange','red','purple','blue','cyan','lime','yellow','black']
+    custom_map = ['grey','cyan','magenta','lime','orange','red','purple','blue','yellow','black']
     
     # Calculate color
     if num_series > len(custom_map):
