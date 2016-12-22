@@ -184,7 +184,8 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 
                 # Plot scatter plot
                 ax.plot(x,y,linestyle='None',marker='o',
-                        markerfacecolor=color_val,markersize=marker_size)                
+                        markerfacecolor=color_val,markersize=marker_size)
+
             elif plot_type == 'histogram':
                 # Plot histogram of data based on type of plot and whether on- or off-diagonal
                 if diagonal_flag:
@@ -322,8 +323,12 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     # Set y-tick positions and labels if against left-side                    
                     if not axis_column_ind:
                         ax.set_yticks(ind)
-                        ax.set_yticklabels(sorted_row_values,size=label_size)                    
-            
+                        ax.set_yticklabels(sorted_row_values,size=label_size)
+                        
+            else:
+                # Set y-tick positions and labels if against left-side                    
+                ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='off')
+                         
             # Set y- and x-axis labels
             label_padding = 5
             if not axis_column_ind:
