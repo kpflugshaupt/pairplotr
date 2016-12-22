@@ -67,6 +67,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     
     # Set bar parameters
     bar_width = 0.4
+    bar_edge_color = None
     
     # Set marker parameters
     marker_size = 2
@@ -183,8 +184,13 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 color_val = _get_color_val(0,1)
                 
                 # Plot scatter plot
-                ax.plot(x,y,linestyle='None',marker='o',
-                        markerfacecolor=color_val,markersize=marker_size)
+                plot_kwargs = {
+                    'linestyle': 'None',
+                    'marker': 'o',
+                    'markerfacecolor': color_val,
+                    'markersize': marker_size
+                }
+                ax.plot(x,y,**plot_kwargs)
 
             elif plot_type == 'histogram':
                 # Plot histogram of data based on type of plot and whether on- or off-diagonal
@@ -196,7 +202,13 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     color_val = _get_color_val(0,1)
 
                     # Plot full histogram of numerical values
-                    ax.hist(x,alpha=bar_alpha,bins=20,color=color_val)
+                    plot_kwargs = {
+                        'alpha': bar_alpha,
+                        'bins': 20,
+                        'color': color_val,
+                        'edgecolor': color
+                    }
+                    ax.hist(x,**plot_kwargs)
                 else:                    
                     # Get unique category values
                     unique_row_feature_values = feature_attributes[row_feature]['feature_value_order']
@@ -213,7 +225,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                         data = df[col_feature][df[row_feature]==unique_feature_value].values
             
                         # Draw current histogram
-                        ax.hist(data,alpha=bar_alpha,bins=bins,label=unique_row_feature_values,color=color)
+                        ax.hist(data,alpha=bar_alpha,bins=bins,label=unique_row_feature_values,color=color,edgecolor=color)
                     
                     # Make all bars in multiple overlapping histogram plot visible
                     ## Get number of histograms
@@ -259,7 +271,13 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     color = _get_color_val(0,1) # Just pick first color
 
                     # Draw bars
-                    bars = ax.barh(bar_positions,sorted_row_value_counts,color=color,alpha=bar_alpha,align='center')
+                    plot_kwargs = {
+                        'color': color,
+                        'alpha': bar_alpha,
+                        'align': 'center',
+                        'edgecolor': color
+                    }
+                    bars = ax.barh(bar_positions,sorted_row_value_counts,**plot_kwargs)
 
                     # Set each bar as the color corresponding to each row feature value 
                     for sorted_row_value_ind,sorted_row_value in enumerate(sorted_row_values):
@@ -299,7 +317,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
 
                     for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):                                
                         # Calculate color for bars
-                        colorVal = feature_attributes[col_feature]['feature_value_colors'][unique_col_feature_value]
+                        color = feature_attributes[col_feature]['feature_value_colors'][unique_col_feature_value]
                         
                         # Get data for current col_feature value and column_feature
                         data = split_data[str(unique_col_feature_value)]
@@ -314,9 +332,11 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 
                         # Set bottom plot keyword arguments
                         plot_kwargs = {
-                            'color': colorVal,
+                            'color': color,
                             'left': bottom_bar_buffer,
-                            'align': 'center'
+                            'align': 'center',
+                            'edgecolor': bar_edge_color,
+                            'alpha': bar_alpha
                         }
                         ax.barh(ind,data,**plot_kwargs)
                     
