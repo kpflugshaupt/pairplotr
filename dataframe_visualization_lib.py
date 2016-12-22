@@ -67,10 +67,31 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     
     # Set bar parameters
     bar_width = 0.4
-    bar_edge_color = None
+    bar_edge_color = 'w'
     
     # Set marker parameters
     marker_size = 2
+    
+    # Encode default plot parameters
+    plot_kwargs = {
+        'scatter': {
+            'linestyle': 'None',
+            'marker': 'o',
+            'markersize': marker_size
+        },
+        'histogram': {
+            'alpha': bar_alpha
+        },
+        'bar': {
+            'alpha': bar_alpha,
+            'align': 'center'            
+        }
+    }
+    
+    # Set bar_edge_color as default if provided by user
+    if bar_edge_color:
+        plot_kwargs['histogram']['edgecolor'] = bar_edge_color
+        plot_kwargs['bar']['edgecolor'] = bar_edge_color
     
     # Generate figure
     fig = plt.figure(figsize=[fig_size,fig_size*fig_aspect])
@@ -174,41 +195,44 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             else:
                 ax.tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='off')
                 
-            # Generate plot
+            # Generate plot in axis
             if plot_type == 'scatter':
                 # Get data
                 x = df[col_feature].values
                 y = df[row_feature].values
                 
                 # Pick color
-                color_val = _get_color_val(0,1)
-                
-                # Plot scatter plot
-                plot_kwargs = {
-                    'linestyle': 'None',
-                    'marker': 'o',
-                    'markerfacecolor': color_val,
-                    'markersize': marker_size
-                }
-                ax.plot(x,y,**plot_kwargs)
-
+                plot_kwargs['scatter']['markerfacecolor'] = _get_color_val(0,1)
+                                
+                ax.plot(x,y,**plot_kwargs['scatter'])                
             elif plot_type == 'histogram':
                 # Plot histogram of data based on type of plot and whether on- or off-diagonal
                 if diagonal_flag:
                     # Get data
                     x = df[row_feature].values
+                    
+                    # Generate bins based on minimum and maximum and number of bars
+                    bins = np.linspace(df[row_feature].min(),df[row_feature].max(),num_bars)
 
                     # Pick color
-                    color_val = _get_color_val(0,1)
+                    color = _get_color_val(0,1)
 
-                    # Plot full histogram of numerical values
-                    plot_kwargs = {
-                        'alpha': bar_alpha,
-                        'bins': 20,
-                        'color': color_val,
-                        'edgecolor': color
-                    }
-                    ax.hist(x,**plot_kwargs)
+                    # Set series-specific parameters                
+                    ## Set lower value to start bars from
+                    plot_kwargs[plot_type]['bins'] = bins
+                    
+                    ## Set series label
+                    plot_kwargs[plot_type]['label'] = row_feature
+                    
+                    ## Set bar colors
+                    plot_kwargs[plot_type]['color'] = color
+                    
+                    ## Set bar edge color (default is color of current bar unless provided by user)
+                    if not bar_edge_color:
+                        plot_kwargs[plot_type]['edgecolor'] = color
+                    
+                    # Plot histogram
+                    ax.hist(x,**plot_kwargs[plot_type])
                 else:                    
                     # Get unique category values
                     unique_row_feature_values = feature_attributes[row_feature]['feature_value_order']
@@ -224,8 +248,22 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                         # Get data for current histogram
                         data = df[col_feature][df[row_feature]==unique_feature_value].values
             
-                        # Draw current histogram
-                        ax.hist(data,alpha=bar_alpha,bins=bins,label=unique_row_feature_values,color=color,edgecolor=color)
+                        # Set series-specific parameters                
+                        ## Set lower value to start bars from
+                        plot_kwargs[plot_type]['bins'] = bins
+                        
+                        ## Set series label
+                        plot_kwargs[plot_type]['label'] = unique_row_feature_values
+                        
+                        ## Set bar colors
+                        plot_kwargs[plot_type]['color'] = color
+                        
+                        ## Set bar edge color (default is color of current bar unless provided by user)
+                        if not bar_edge_color:
+                            plot_kwargs[plot_type]['edgecolor'] = color
+                        
+                        # Plot current histogram
+                        ax.hist(data,**plot_kwargs[plot_type])
                     
                     # Make all bars in multiple overlapping histogram plot visible
                     ## Get number of histograms
@@ -269,21 +307,31 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 if diagonal_flag:
                     # Pick color
                     color = _get_color_val(0,1) # Just pick first color
-
-                    # Draw bars
-                    plot_kwargs = {
-                        'color': color,
-                        'alpha': bar_alpha,
-                        'align': 'center',
-                        'edgecolor': color
-                    }
-                    bars = ax.barh(bar_positions,sorted_row_value_counts,**plot_kwargs)
+                    
+                    # Set series-specific parameters
+                    ## Set lower value to start bars from
+                    plot_kwargs[plot_type]['left'] = 0
+                    
+                    ## Set bar colors
+                    plot_kwargs[plot_type]['color'] = color
+                    
+                    ## Set bar edge color (default is color of current bar unless provided by user)
+                    if not bar_edge_color:
+                        plot_kwargs[plot_type]['edgecolor'] = color
+                    
+                    # Draw bar plot
+                    bars = ax.barh(bar_positions,sorted_row_value_counts,**plot_kwargs[plot_type])
 
                     # Set each bar as the color corresponding to each row feature value 
                     for sorted_row_value_ind,sorted_row_value in enumerate(sorted_row_values):
                         bar_color = feature_attributes[row_feature]['feature_value_colors'][sorted_row_value]
                         
                         bars[sorted_row_value_ind].set_color(bar_color)
+                        
+                        if not bar_edge_color:
+                            bars[sorted_row_value_ind].set_edgecolor(bar_color)
+                        else:
+                            bars[sorted_row_value_ind].set_edgecolor(bar_edge_color)
                         
                         bars[sorted_row_value_ind].set_label(sorted_row_value)
                         
@@ -315,13 +363,15 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     # Initalize value for bottom bar for stacked bar charts
                     bottom_bar_buffer = np.zeros(len(sorted_row_feature_values))
 
+                    # Plot stacked bars for row feature data corresponding to each column feature value
                     for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):                                
-                        # Calculate color for bars
+                        # Get color for bars
                         color = feature_attributes[col_feature]['feature_value_colors'][unique_col_feature_value]
                         
                         # Get data for current col_feature value and column_feature
                         data = split_data[str(unique_col_feature_value)]
                 
+                        # Add previous values to current buffer
                         if unique_col_feature_value_ind:
                             previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
                             
@@ -329,16 +379,20 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                         
                         # Calculate bar positions
                         ind = np.arange(len(sorted_row_feature_values))    # the x locations for the groups
-                
-                        # Set bottom plot keyword arguments
-                        plot_kwargs = {
-                            'color': color,
-                            'left': bottom_bar_buffer,
-                            'align': 'center',
-                            'edgecolor': bar_edge_color,
-                            'alpha': bar_alpha
-                        }
-                        ax.barh(ind,data,**plot_kwargs)
+                        
+                        # Set series-specific parameters
+                        ## Set lower value to start bars from
+                        plot_kwargs[plot_type]['left'] = bottom_bar_buffer
+                        
+                        # Set bar colors
+                        plot_kwargs[plot_type]['color'] = color
+                        
+                        ## Set bar edge color (default is color of current bar unless provided by user)
+                        if not bar_edge_color:
+                            plot_kwargs[plot_type]['edgecolor'] = color
+                        
+                        # Plot bars corresponding to current series
+                        ax.barh(ind,data,**plot_kwargs[plot_type])
                     
                     # Set y-tick positions and labels if against left-side                    
                     if not axis_column_ind:
