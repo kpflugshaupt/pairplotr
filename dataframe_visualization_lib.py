@@ -57,13 +57,18 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     text_family = 'sans-serif'
     text_font = 'Helvetica Neue Light'
     text_font_size = 8
-    label_size = text_font_size-2
+    tick_label_size = text_font_size-3
     
-    # set default text font, color, and size
-    matplotlib.rc('font',family=text_family) 
-    matplotlib.rc('font',serif=text_font)
-    matplotlib.rcParams['text.color'] = text_and_line_color
-    matplotlib.rcParams['font.size'] = text_font_size
+    text_properties = {
+        'tick_labels': {
+            'family': 'sans-serif', 
+            'weight': 'normal',
+            'size': tick_label_size
+        }
+    }
+    
+    # Set padding of axis labels so they don't overlap with tick-labels
+    label_padding = 0.65
     
     # Set bar parameters
     bar_width = 0.4
@@ -338,7 +343,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     # Set bar labels if at edge
                     if left_edge_flag:
                         ax.set_yticks(bar_positions)
-                        ax.set_yticklabels(tick_labels,size=label_size)
+                        ax.set_yticklabels(tick_labels,size=tick_label_size)
                 else:                    
                     # Get individual row values
                     sorted_row_feature_values = feature_attributes[row_feature]['feature_value_order']
@@ -397,23 +402,36 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     # Set y-tick positions and labels if against left-side                    
                     if not axis_column_ind:
                         ax.set_yticks(ind)
-                        ax.set_yticklabels(sorted_row_values,size=label_size)
+                        ax.set_yticklabels(sorted_row_values,size=tick_label_size,color=text_and_line_color)
                         
             else:
                 # Set y-tick positions and labels if against left-side                    
                 ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='off')
                          
             # Set y- and x-axis labels
-            label_padding = 5
             if not axis_column_ind:
-                ax.set_ylabel(row_feature,color=text_and_line_color,size=text_font_size,labelpad=label_padding)
+                ax.set_ylabel(row_feature,color=text_and_line_color,size=text_font_size)
+                ax.get_yaxis().set_label_coords(-label_padding,0.5)
             if axis_row_ind == number_features-1:
-                ax.set_xlabel(col_feature,color=text_and_line_color,size=text_font_size,labelpad=label_padding) 
+                ax.set_xlabel(col_feature,color=text_and_line_color,size=text_font_size) 
 
-            # Set axis labels if on left and/or bottom edges
+            # Set y-axis labels if on left 
             if not axis_column_ind:
-                ax.set_y_label = row_feature
+                ax.set_yticklabels(ax.get_yticklabels(),text_properties['tick_labels'])
+                
+                
+                                
+                #for tick in ax.get_yticklabels():
+                #    tick.set_fontname("Helvetica Neue Light")
+                #    tick.label.set_fontsize(tick_label_size) 
+                    
+            # Set x-axis tick labels if on bottom
+            if axis_row_ind == len(plot_vars)-1:
+                for tick in ax.get_xticklabels():
+                    tick.set_fontname("Helvetica Neue Light")
+                    tick.label.set_fontsize(tick_label_size) 
             
+
 def _get_color_val(ind,num_series):
     colormap = 'rainbow'
     color_map = plt.get_cmap(colormap)
