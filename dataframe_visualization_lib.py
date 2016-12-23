@@ -10,15 +10,9 @@ import pandas as pd
 
 def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                  num_bars=20,palette=['grey','orange','red'],fig_size=60,
-                 fig_aspect=1):
+                 fig_aspect=1,scatter_plot_filter=None):
     """
-    Outputs a modified pair grid where data plots takes this form:
-    
-    same feature vs same feature: Uncolored distribution
-    continuous vs continuous: scatter plot colored by the default feature
-    category vs continuous: distribution of continuous feature colored by category
-    category 1 vs category 2: distribution of category 2 colored by category 1
-    continuous vs category: As yet undetermined... probably blank
+    Outputs a pairplot given a Pandas dataframe
     
     On-diagonal:        
         Categorical: Value counts of feature values ordered by ascending value count and colored by feature values
@@ -48,6 +42,18 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     # Count number of features
     number_features = len(plot_vars)
     
+    # Raise error if the desired feature to color the scatter plots isn't found and/or is not categorical
+    if scatter_plot_filter:
+        if scatter_plot_filter not in plot_vars:
+            raise Exception("The scatter_plot_filter keyword argument, %s, is not one of the \
+                            features."%(scatter_plot_filter))
+        
+        if data_types[scatter_plot_filter] != 'category':
+            raise Exception("The scatter_plot_filter keyword argument, %s, is not defined as a \
+                            category in the data_types keyword argument. Only categorical \
+                            features can be used to color scatter plots."%(scatter_plot_filter))
+        
+            
     ################## SET FIGURE DEFAULTS ##################
     # Set text and line color
     grayLevel = 0.6
@@ -189,16 +195,11 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             ax.spines['left'].set_visible(False)
             ax.spines['bottom'].set_visible(False)
             
-            # Make only left- and bottom-edge ticks visible
+            # Make only left-edge tick-labels visible
             if left_edge_flag:
                 ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='on')
             else:
                 ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='off')
-                
-            if bottom_edge_flag:
-                ax.tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='off')
-            else:
-                ax.tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='off')
                 
             # Generate plot in axis
             if plot_type == 'scatter':
@@ -206,10 +207,30 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 x = df[col_feature].values
                 y = df[row_feature].values
                 
-                # Pick color
-                plot_kwargs['scatter']['markerfacecolor'] = _get_color_val(0,1)
-                                
-                ax.plot(x,y,**plot_kwargs['scatter'])                
+                # Plot scatter plot either labeled or unlabeled
+                if not scatter_plot_filter:
+                    # Pick color
+                    plot_kwargs['scatter']['markerfacecolor'] = _get_color_val(0,1)
+                    
+                    ax.plot(x,y,**plot_kwargs['scatter'])
+                else:
+                    # Obtain unique values of filter feature
+                    
+                    # Separate data according to each filter feature value
+                    
+                    # Plot separate datasets
+                    for feature_value in feature_attributes[scatter_plot_filter]['feature_value_order']:
+                        # Get data
+                        x = df[col_feature][df[scatter_plot_filter]==feature_value]
+                        y = df[row_feature][df[scatter_plot_filter]==feature_value]
+                        
+                        # Get color
+                        color = feature_attributes[scatter_plot_filter]['feature_value_colors'][feature_value]
+                        
+                        plot_kwargs['scatter']['markerfacecolor'] = color
+                        
+                        ax.plot(x,y,**plot_kwargs['scatter'])
+                        
             elif plot_type == 'histogram':
                 # Plot histogram of data based on type of plot and whether on- or off-diagonal
                 if diagonal_flag:
@@ -425,11 +446,11 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 #    tick.set_fontname("Helvetica Neue Light")
                 #    tick.label.set_fontsize(tick_label_size) 
                     
-            # Set x-axis tick labels if on bottom
-            if axis_row_ind == len(plot_vars)-1:
-                for tick in ax.get_xticklabels():
-                    tick.set_fontname("Helvetica Neue Light")
-                    tick.label.set_fontsize(tick_label_size) 
+            ## Set x-axis tick labels if on bottom
+            #if axis_row_ind == len(plot_vars)-1:
+            #    for tick in ax.get_xticklabels():
+            #        tick.set_fontname("Helvetica Neue Light")
+            #        tick.set_fontsize(tick_label_size) 
             
 
 def _get_color_val(ind,num_series):
