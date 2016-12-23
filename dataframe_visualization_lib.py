@@ -82,13 +82,15 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     
     # Set marker parameters
     marker_size = 2
+    marker_alpha = 0.5
     
     # Encode default plot parameters
     plot_kwargs = {
         'scatter': {
             'linestyle': 'None',
             'marker': 'o',
-            'markersize': marker_size
+            'markersize': marker_size,
+            'alpha': marker_alpha
         },
         'histogram': {
             'alpha': bar_alpha
@@ -186,9 +188,6 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             # Create subplot
             ax = fig.add_subplot(fig_size,fig_size*fig_aspect,axis_row_ind*fig_size*fig_aspect+axis_column_ind+1)
                         
-            # Turn off xticks and ticks
-            ax.tick_params(labelcolor='k',top='off',bottom='off',left='off',right='off')
-            
             # Set spine visibility depending on whether the axis is at on the right and/or bottom of the grid
             ax.spines['top'].set_visible(False)
             ax.spines['right'].set_visible(False)
@@ -196,11 +195,12 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             ax.spines['bottom'].set_visible(False)
             
             # Make only left-edge tick-labels visible
+            ax.tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='off')
             if left_edge_flag:
                 ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='on')
             else:
                 ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='off')
-                
+            
             # Generate plot in axis
             if plot_type == 'scatter':
                 # Get data
@@ -214,10 +214,6 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                     
                     ax.plot(x,y,**plot_kwargs['scatter'])
                 else:
-                    # Obtain unique values of filter feature
-                    
-                    # Separate data according to each filter feature value
-                    
                     # Plot separate datasets
                     for feature_value in feature_attributes[scatter_plot_filter]['feature_value_order']:
                         # Get data
@@ -229,6 +225,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                         
                         plot_kwargs['scatter']['markerfacecolor'] = color
                         
+                        # Plot scatter plot for current data
                         ax.plot(x,y,**plot_kwargs['scatter'])
                         
             elif plot_type == 'histogram':
@@ -446,11 +443,11 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 #    tick.set_fontname("Helvetica Neue Light")
                 #    tick.label.set_fontsize(tick_label_size) 
                     
-            ## Set x-axis tick labels if on bottom
-            #if axis_row_ind == len(plot_vars)-1:
-            #    for tick in ax.get_xticklabels():
-            #        tick.set_fontname("Helvetica Neue Light")
-            #        tick.set_fontsize(tick_label_size) 
+            # Set x-axis tick labels if on bottom
+            if axis_row_ind == len(plot_vars)-1:
+                for tick in ax.get_xticklabels():
+                    tick.set_fontname("Helvetica Neue Light")
+                    tick.label.set_fontsize(tick_label_size) 
             
 
 def _get_color_val(ind,num_series):
