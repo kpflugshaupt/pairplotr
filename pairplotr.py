@@ -190,7 +190,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 if diagonal_flag:
                     plot_type = 'histogram'
                 else:
-                    plot_type == 'scatter'
+                    plot_type = 'scatter'
             elif row_type == 'category' and col_type == 'numerical':
                 plot_type = 'histogram'
             elif row_type == 'category' and col_type == 'category':
@@ -200,7 +200,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             else:
                 raise Exception("Logic error invovling plot types encountered.")
             
-                
+            
             # Create axis keyword arguments
             axis_kwargs = {
                 'frame_on': False,
