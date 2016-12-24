@@ -12,22 +12,24 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                  num_bars=20,palette=['grey','orange','red'],fig_size=60,
                  fig_aspect=1,scatter_plot_filter=None):
     """
-    Outputs a pairplot given a Pandas dataframe
+    Outputs a pairplot given a Pandas dataframe with these formats for Row feature|Column feature
+    combinations in either on- or off-diagonal cells: 
     
     On-diagonal:        
-        Categorical: Value counts of feature values ordered by ascending value count and colored by feature values
-        Numerical: Histogram of feature w/ no coloring (or by desired label)
+        Categorical|Categorical:    Value counts of feature values ordered by ascending value count and
+                                    colored by feature values
+        Numerical|Numerical:        Histogram of feature w/ no coloring (or by desired label)
     Off-diagonal:
-        Categorical row vs categorical column: Stacked value count of row feature values colored by column feature values
-        Categorical row vs numerical column: Histograms of column feature for each row feature value colored by row feature value
-        Numerical row vs numerical column: Scatter plot of row feature values vs column feature values w/ no coloring (or by desired label)
-        
-    Need:   1) An order for each row feature value (by ascending total count)
-            2) Colors for those row feature values for when they intersect with a numerical column feature
-            3) An order for each column feature value (by ascending total count)
-            4) A color for each column feature value
-    """
+        Categorical|Categorical:    Stacked value count of row feature values colored by column feature
+                                    values
+        Categorical|Numerical:      Histograms of column feature for each row feature value colored by
+                                    row feature value
+        Numerical|Numerical:        Scatter plot of row feature values vs column feature values w/ no
+                                    coloring (or by desired label)
+                                    
     
+                                    
+    """    
     # Use all features if not explicitly provided by user
     if not plot_vars:
         plot_vars = list(df.columns)
@@ -38,6 +40,21 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     
     # Keep only features specified by the user that are also included in the data types dictionary
     plot_vars = [plot_var for plot_var in plot_vars if plot_var in data_types]
+    
+    # Move first categorical feature to front column in front of a first numerical feature
+    feature_types = [data_types[feature] for feature in plot_vars]
+    if 'category' in feature_types and feature_types[0]=='numerical':
+        # Pop out first categorical variable
+        feature_to_move = plot_vars.pop(feature_types.index('category'))
+        
+        # Issue warning to user
+        print "WARNING: Due to a y-tick label bug I can't seem to overcome, the first continuous " \
+              "feature encountered in either the dataframe column list or the user-specified list "\
+              "of features keyword argument, plot_vars, %s has been moved to the front of the list "\
+              "because the first feature, %s, is numerical.\n" %(feature_to_move,plot_vars[0])
+        
+        # Move first categorical feature to the front of the list of features
+        plot_vars.insert(0,feature_to_move)
     
     # Count number of features
     number_features = len(plot_vars)
@@ -53,8 +70,6 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                             category in the data_types keyword argument. Only categorical \
                             features can be used to color scatter plots."%(scatter_plot_filter))
         
-            
-    ################## SET FIGURE DEFAULTS ##################
     # Set text and line color
     grayLevel = 0.6
     text_and_line_color = (0.0,0.0,0.0,grayLevel)
@@ -155,10 +170,27 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             # Get the column feature and its type
             col_feature = plot_vars[axis_column_ind]
             col_type = data_types[col_feature]
+
+            # Determine if this is a diagonal, left-edge, and/or bottom-edge grid cell
+            diagonal_flag = False
+            left_edge_flag = False
+            bottom_edge_flag = False
+            if axis_row_ind == axis_column_ind:
+                diagonal_flag = True
+            
+            if axis_column_ind == 0:
+                left_edge_flag = True
+                
+            if axis_row_ind == number_features-1:
+                bottom_edge_flag = True
+
             
             # Determine plot type
             if row_type == 'numerical' and col_type == 'numerical':
-                plot_type = 'scatter'
+                if diagonal_flag:
+                    plot_type = 'histogram'
+                else:
+                    plot_type == 'scatter'
             elif row_type == 'category' and col_type == 'numerical':
                 plot_type = 'histogram'
             elif row_type == 'category' and col_type == 'category':
@@ -168,39 +200,19 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             else:
                 raise Exception("Logic error invovling plot types encountered.")
             
-            # Determine if this is a diagonal, left-edge, and/or bottom-edge grid cell
-            diagonal_flag = False
-            left_edge_flag = False
-            bottom_edge_flag = False
-            if axis_row_ind == axis_column_ind:
-                diagonal_flag = True
                 
-                # Change plot type to histogram for numerical plots
-                if plot_type == 'scatter':
-                    plot_type = 'histogram'
-                
-            if axis_column_ind == 0:
-                left_edge_flag = True
-                
-            if axis_row_ind == number_features-1:
-                bottom_edge_flag = True
-                
-            # Create subplot
-            ax = fig.add_subplot(fig_size,fig_size*fig_aspect,axis_row_ind*fig_size*fig_aspect+axis_column_ind+1)
-                        
-            # Set spine visibility depending on whether the axis is at on the right and/or bottom of the grid
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-            ax.spines['bottom'].set_visible(False)
+            # Create axis keyword arguments
+            axis_kwargs = {
+                'frame_on': False,
+                'xticks': [],
+                'yticks': [],
+                'xticklabels': [],
+            }
             
-            # Make only left-edge tick-labels visible
-            ax.tick_params(axis='x',which='both',bottom='off',top='off',labelbottom='off')
-            if left_edge_flag:
-                ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='on')
-            else:
-                ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='off')
-            
+            # Add axis subplot
+            if plot_type or left_edge_flag:
+                ax = fig.add_subplot(fig_size,fig_size*fig_aspect,axis_row_ind*fig_size*fig_aspect+axis_column_ind+1,**axis_kwargs)
+                                    
             # Generate plot in axis
             if plot_type == 'scatter':
                 # Get data
@@ -325,7 +337,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 
                 # Set bar and tick-label positions
                 bar_positions = np.arange(len(sorted_row_values))
-                
+                                
                 # Draw bar chart based on whether on- or off-diagonal
                 if diagonal_flag:
                     # Pick color
@@ -357,15 +369,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                             bars[sorted_row_value_ind].set_edgecolor(bar_edge_color)
                         
                         bars[sorted_row_value_ind].set_label(sorted_row_value)
-                        
-                    # Set bar labels if at edge
-                    if left_edge_flag:
-                        ax.set_yticks(bar_positions)
-                        ax.set_yticklabels(tick_labels,size=tick_label_size)
                 else:                    
-                    # Get individual row values
-                    sorted_row_feature_values = feature_attributes[row_feature]['feature_value_order']
-                    
                     # Obtain column feature
                     unique_col_feature_values = feature_attributes[col_feature]['feature_value_order']
 
@@ -375,7 +379,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                         # Find and save data of row feature with current value of column feature,
                         # count the number of each row feature value, and sort by the order
                         # determined by the total count of each row feature value
-                        sorted_filtered_data = df[row_feature][df[col_feature]==unique_col_feature_value].value_counts()[sorted_row_feature_values]
+                        sorted_filtered_data = df[row_feature][df[col_feature]==unique_col_feature_value].value_counts()[sorted_row_values]
                         
                         # Fill N/A values with zero
                         sorted_filtered_data.fillna(0,inplace=True)
@@ -384,7 +388,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                         split_data[str(unique_col_feature_value)] = sorted_filtered_data.values
                         
                     # Initalize value for bottom bar for stacked bar charts
-                    bottom_bar_buffer = np.zeros(len(sorted_row_feature_values))
+                    bottom_bar_buffer = np.zeros(len(sorted_row_values))
 
                     # Plot stacked bars for row feature data corresponding to each column feature value
                     for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):                                
@@ -399,10 +403,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                             previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
                             
                             bottom_bar_buffer = bottom_bar_buffer + split_data[str(previous_feature_value)]                                                
-                        
-                        # Calculate bar positions
-                        ind = np.arange(len(sorted_row_feature_values))    # the x locations for the groups
-                        
+                                                
                         # Set series-specific parameters
                         ## Set lower value to start bars from
                         plot_kwargs[plot_type]['left'] = bottom_bar_buffer
@@ -415,57 +416,52 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                             plot_kwargs[plot_type]['edgecolor'] = color
                         
                         # Plot bars corresponding to current series
-                        ax.barh(ind,data,**plot_kwargs[plot_type])
+                        ax.barh(bar_positions,data,**plot_kwargs[plot_type])
                     
-                    # Set y-tick positions and labels if against left-side                    
-                    if not axis_column_ind:
-                        ax.set_yticks(ind)
-                        ax.set_yticklabels(sorted_row_values,size=tick_label_size,color=text_and_line_color)
-                        
-            else:
                 # Set y-tick positions and labels if against left-side                    
-                ax.tick_params(axis='y',which='both',left='off',right='off',labelleft='off')
-                         
+                if left_edge_flag:
+                    ax.set_yticks(bar_positions)
+                    ax.set_yticklabels(tick_labels,size=tick_label_size,color=text_and_line_color)
+                        
             # Set y- and x-axis labels
-            if not axis_column_ind:
+            if left_edge_flag:
                 ax.set_ylabel(row_feature,color=text_and_line_color,size=text_font_size)
                 ax.get_yaxis().set_label_coords(-label_padding,0.5)
-            if axis_row_ind == number_features-1:
+            if bottom_edge_flag:
                 ax.set_xlabel(col_feature,color=text_and_line_color,size=text_font_size) 
 
-            # Set y-axis labels if on left 
-            if not axis_column_ind:
+            # Set y-axis tick labels if on left 
+            if left_edge_flag:
                 ax.set_yticklabels(ax.get_yticklabels(),text_properties['tick_labels'])
                 
-                
-                                
-                #for tick in ax.get_yticklabels():
-                #    tick.set_fontname("Helvetica Neue Light")
-                #    tick.label.set_fontsize(tick_label_size) 
-                    
             # Set x-axis tick labels if on bottom
-            if axis_row_ind == len(plot_vars)-1:
+            if bottom_edge_flag:
                 for tick in ax.get_xticklabels():
                     tick.set_fontname("Helvetica Neue Light")
                     tick.label.set_fontsize(tick_label_size) 
             
 
 def _get_color_val(ind,num_series):
-    colormap = 'rainbow'
+    # Default colormap
+    colormap = 'viridis'
     color_map = plt.get_cmap(colormap)
     
-    custom_map = ['grey','cyan','orange','magenta','lime','red','purple','blue','yellow','black']
+    custom_map = ['gray','cyan','orange','magenta','lime','red','purple','blue','yellow','black']
     
-    # Calculate color
+    # Choose color
     if num_series > len(custom_map):
         if not ind:
-            colorVal = 'gray'
+            color = 'gray'
         else:
-            colorVal = color_map((ind-1)/float(num_series+1))
+            if num_series != 1:
+                color = color_map(float(ind)/(float(num_series)-1))
+            else:
+                color = color_map(float(ind)/(float(num_series)))
+            
     else:
-        colorVal = custom_map[ind]
+        color = custom_map[ind]
     
-    return colorVal
+    return color
 
 def infer_feature_types(df,suppress_report=False):
     """
