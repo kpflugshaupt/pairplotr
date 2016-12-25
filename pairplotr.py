@@ -1,6 +1,7 @@
 import seaborn as sns
 sns.set(style="white",color_codes=True)
 import inspect
+
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +11,7 @@ import pandas as pd
 
 def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                  num_bars=20,palette=['grey','orange','red'],fig_size=60,
-                 fig_aspect=1,scatter_plot_filter=None):
+                 fig_aspect=1,dpi=[],scatter_plot_filter=None):
     """
     Outputs a pairplot given a Pandas dataframe with these formats for Row feature|Column feature
     combinations in either on- or off-diagonal cells: 
@@ -26,10 +27,8 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                                     row feature value
         Numerical|Numerical:        Scatter plot of row feature values vs column feature values w/ no
                                     coloring (or by desired label)
-                                    
+    """
     
-                                    
-    """    
     # Use all features if not explicitly provided by user
     if not plot_vars:
         plot_vars = list(df.columns)
@@ -184,7 +183,6 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             if axis_row_ind == number_features-1:
                 bottom_edge_flag = True
 
-            
             # Determine plot type
             if row_type == 'numerical' and col_type == 'numerical':
                 if diagonal_flag:
@@ -199,7 +197,6 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                 plot_type = None
             else:
                 raise Exception("Logic error invovling plot types encountered.")
-            
             
             # Create axis keyword arguments
             axis_kwargs = {
@@ -438,7 +435,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             if bottom_edge_flag:
                 for tick in ax.get_xticklabels():
                     tick.set_fontname("Helvetica Neue Light")
-                    tick.label.set_fontsize(tick_label_size) 
+                    tick.label.set_fontsize(tick_label_size)    
             
 
 def _get_color_val(ind,num_series):
