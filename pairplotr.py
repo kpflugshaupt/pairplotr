@@ -10,8 +10,8 @@ import matplotlib.cm as cmx
 import pandas as pd
 
 def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
-                 num_bars=20,palette=['grey','orange','red'],fig_size=60,
-                 fig_aspect=1,dpi=[],scatter_plot_filter=None):
+                 num_bars=20,palette=['grey','orange','red'],fig_size=12,
+                 fig_aspect=1,dpi=[],scatter_plot_filter=None,zoom=[]):
     """
     Outputs a pairplot given a Pandas dataframe with these formats for Row feature|Column feature
     combinations in either on- or off-diagonal cells: 
@@ -208,7 +208,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             
             # Add axis subplot
             if plot_type or left_edge_flag:
-                ax = fig.add_subplot(fig_size,fig_size*fig_aspect,axis_row_ind*fig_size*fig_aspect+axis_column_ind+1,**axis_kwargs)
+                ax = fig.add_subplot(number_features,number_features,axis_row_ind*number_features+axis_column_ind+1,**axis_kwargs)                
                                     
             # Generate plot in axis
             if plot_type == 'scatter':
