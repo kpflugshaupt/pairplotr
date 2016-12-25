@@ -9,6 +9,220 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import pandas as pd
 
+def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,plot_type=[],scatter_plot_filter=[],plot_kwargs=[],diagonal_flag=[],num_bars=[],bar_edge_color=[],left_edge_flag=[],tick_label_size=[],text_and_line_color=[]):
+    """
+    
+    """
+    
+    if plot_type == 'scatter':
+        # Get data
+        x = df[col_feature].values
+        y = df[row_feature].values
+        
+        # Plot scatter plot either labeled or unlabeled
+        if not scatter_plot_filter:
+            # Pick color
+            plot_kwargs['scatter']['markerfacecolor'] = _get_color_val(0,1)
+            
+            ax.plot(x,y,**plot_kwargs['scatter'])
+        else:
+            # Plot separate datasets
+            for feature_value in feature_attributes[scatter_plot_filter]['feature_value_order']:
+                # Get data
+                x = df[col_feature][df[scatter_plot_filter]==feature_value]
+                y = df[row_feature][df[scatter_plot_filter]==feature_value]
+                
+                # Get color
+                color = feature_attributes[scatter_plot_filter]['feature_value_colors'][feature_value]
+                
+                plot_kwargs['scatter']['markerfacecolor'] = color
+                
+                # Plot scatter plot for current data
+                ax.plot(x,y,**plot_kwargs['scatter'])
+                
+    elif plot_type == 'histogram':
+        # Plot histogram of data based on type of plot and whether on- or off-diagonal
+        if diagonal_flag:
+            # Get data
+            x = df[row_feature].values
+            
+            # Generate bins based on minimum and maximum and number of bars
+            bins = np.linspace(df[row_feature].min(),df[row_feature].max(),num_bars)
+
+            # Pick color
+            color = _get_color_val(0,1)
+
+            # Set series-specific parameters                
+            ## Set lower value to start bars from
+            plot_kwargs[plot_type]['bins'] = bins
+            
+            ## Set series label
+            plot_kwargs[plot_type]['label'] = row_feature
+            
+            ## Set bar colors
+            plot_kwargs[plot_type]['color'] = color
+            
+            ## Set bar edge color (default is color of current bar unless provided by user)
+            if not bar_edge_color:
+                plot_kwargs[plot_type]['edgecolor'] = color
+            
+            # Plot histogram
+            ax.hist(x,**plot_kwargs[plot_type])
+        else:                    
+            # Get unique category values
+            unique_row_feature_values = feature_attributes[row_feature]['feature_value_order']
+            
+            # Generate bins based on minimum and maximum and number of bars
+            bins = np.linspace(df[col_feature].min(),df[col_feature].max(),num_bars)
+            
+            # Plot a histogram for the column-feature for each row-feature value
+            for unique_feature_value in unique_row_feature_values:
+                # Obtain color of current histogram
+                color = feature_attributes[row_feature]['feature_value_colors'][unique_feature_value]
+                
+                # Get data for current histogram
+                data = df[col_feature][df[row_feature]==unique_feature_value].values
+    
+                # Set series-specific parameters                
+                ## Set lower value to start bars from
+                plot_kwargs[plot_type]['bins'] = bins
+                
+                ## Set series label
+                plot_kwargs[plot_type]['label'] = unique_row_feature_values
+                
+                ## Set bar colors
+                plot_kwargs[plot_type]['color'] = color
+                
+                ## Set bar edge color (default is color of current bar unless provided by user)
+                if not bar_edge_color:
+                    plot_kwargs[plot_type]['edgecolor'] = color
+                
+                # Plot current histogram
+                ax.hist(data,**plot_kwargs[plot_type])
+            
+            # Make all bars in multiple overlapping histogram plot visible
+            ## Get number of histograms
+            histogram_count = len(unique_row_feature_values)
+    
+            ## Collect Patch objects representing bars at the same position
+            bars = {}
+            for bar in ax.patches:
+                # Get current bar position
+                bar_position = bar.get_x()
+                
+                # Initialize x-position list in bar dictionary if not present
+                if bar_position not in bars:
+                    bars[bar_position] = []
+                
+                # Add current bar to collection of bars at that position
+                bars[bar_position].append(bar)
+                                        
+            ## Sort bars based on height so smallest is visible
+            for bar_position, bar_group in bars.iteritems():
+                # Sort bars by height order for current bar group at current position
+                if len(bar_group) > 1:
+                    # Sort by height
+                    bar_group = sorted(bar_group, key=lambda x: x.get_height(),reverse=True)
+                    
+                    # Set layer position to current order
+                    for bar_ind,bar in enumerate(bar_group):
+                        bar.set_zorder(bar_ind)
+    elif plot_type == 'bar':
+        # Get row feature values and counts sorted by ascending counts
+        sorted_row_values = feature_attributes[row_feature]['feature_value_order']
+        sorted_row_value_counts = feature_attributes[row_feature]['feature_value_counts']
+        
+        # Set tick-labels
+        tick_labels = sorted_row_values
+        
+        # Set bar and tick-label positions
+        bar_positions = np.arange(len(sorted_row_values))
+                        
+        # Draw bar chart based on whether on- or off-diagonal
+        if diagonal_flag:
+            # Pick color
+            color = _get_color_val(0,1) # Just pick first color
+            
+            # Set series-specific parameters
+            ## Set lower value to start bars from
+            plot_kwargs[plot_type]['left'] = 0
+            
+            ## Set bar colors
+            plot_kwargs[plot_type]['color'] = color
+            
+            ## Set bar edge color (default is color of current bar unless provided by user)
+            if not bar_edge_color:
+                plot_kwargs[plot_type]['edgecolor'] = color
+            
+            # Draw bar plot
+            bars = ax.barh(bar_positions,sorted_row_value_counts,**plot_kwargs[plot_type])
+
+            # Set each bar as the color corresponding to each row feature value 
+            for sorted_row_value_ind,sorted_row_value in enumerate(sorted_row_values):
+                bar_color = feature_attributes[row_feature]['feature_value_colors'][sorted_row_value]
+                
+                bars[sorted_row_value_ind].set_color(bar_color)
+                
+                if not bar_edge_color:
+                    bars[sorted_row_value_ind].set_edgecolor(bar_color)
+                else:
+                    bars[sorted_row_value_ind].set_edgecolor(bar_edge_color)
+                
+                bars[sorted_row_value_ind].set_label(sorted_row_value)
+        else:                    
+            # Obtain column feature
+            unique_col_feature_values = feature_attributes[col_feature]['feature_value_order']
+
+            # Get the row feature count data for each value of the column feature and sort in descending order  
+            split_data = {}
+            for unique_col_feature_value in unique_col_feature_values:
+                # Find and save data of row feature with current value of column feature,
+                # count the number of each row feature value, and sort by the order
+                # determined by the total count of each row feature value
+                sorted_filtered_data = df[row_feature][df[col_feature]==unique_col_feature_value].value_counts()[sorted_row_values]
+                
+                # Fill N/A values with zero
+                sorted_filtered_data.fillna(0,inplace=True)
+                
+                # Add data to dictionary
+                split_data[str(unique_col_feature_value)] = sorted_filtered_data.values
+                
+            # Initalize value for bottom bar for stacked bar charts
+            bottom_bar_buffer = np.zeros(len(sorted_row_values))
+
+            # Plot stacked bars for row feature data corresponding to each column feature value
+            for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):                                
+                # Get color for bars
+                color = feature_attributes[col_feature]['feature_value_colors'][unique_col_feature_value]
+                
+                # Get data for current col_feature value and column_feature
+                data = split_data[str(unique_col_feature_value)]
+        
+                # Add previous values to current buffer
+                if unique_col_feature_value_ind:
+                    previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
+                    
+                    bottom_bar_buffer = bottom_bar_buffer + split_data[str(previous_feature_value)]                                                
+                                        
+                # Set series-specific parameters
+                ## Set lower value to start bars from
+                plot_kwargs[plot_type]['left'] = bottom_bar_buffer
+                
+                # Set bar colors
+                plot_kwargs[plot_type]['color'] = color
+                
+                ## Set bar edge color (default is color of current bar unless provided by user)
+                if not bar_edge_color:
+                    plot_kwargs[plot_type]['edgecolor'] = color
+                
+                # Plot bars corresponding to current series
+                ax.barh(bar_positions,data,**plot_kwargs[plot_type])
+            
+        # Set y-tick positions and labels if against left-side                    
+        if left_edge_flag:
+            ax.set_yticks(bar_positions)
+            ax.set_yticklabels(tick_labels,size=tick_label_size,color=text_and_line_color)    
+
 def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                  num_bars=20,palette=['grey','orange','red'],fig_size=12,
                  fig_aspect=1,dpi=[],scatter_plot_filter=None,zoom=[]):
@@ -207,218 +421,17 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             }
             
             # Add axis subplot
-            if plot_type or left_edge_flag:
-                ax = fig.add_subplot(number_features,number_features,axis_row_ind*number_features+axis_column_ind+1,**axis_kwargs)                
+            if not zoom:
+                if plot_type or left_edge_flag:
+                    ax = fig.add_subplot(number_features,number_features,axis_row_ind*number_features+axis_column_ind+1,**axis_kwargs)
+            else:
+                ax = fig.add_subplot(1,1,1,**axis_kwargs)
                                     
             # Generate plot in axis
-            if plot_type == 'scatter':
-                # Get data
-                x = df[col_feature].values
-                y = df[row_feature].values
-                
-                # Plot scatter plot either labeled or unlabeled
-                if not scatter_plot_filter:
-                    # Pick color
-                    plot_kwargs['scatter']['markerfacecolor'] = _get_color_val(0,1)
-                    
-                    ax.plot(x,y,**plot_kwargs['scatter'])
-                else:
-                    # Plot separate datasets
-                    for feature_value in feature_attributes[scatter_plot_filter]['feature_value_order']:
-                        # Get data
-                        x = df[col_feature][df[scatter_plot_filter]==feature_value]
-                        y = df[row_feature][df[scatter_plot_filter]==feature_value]
-                        
-                        # Get color
-                        color = feature_attributes[scatter_plot_filter]['feature_value_colors'][feature_value]
-                        
-                        plot_kwargs['scatter']['markerfacecolor'] = color
-                        
-                        # Plot scatter plot for current data
-                        ax.plot(x,y,**plot_kwargs['scatter'])
-                        
-            elif plot_type == 'histogram':
-                # Plot histogram of data based on type of plot and whether on- or off-diagonal
-                if diagonal_flag:
-                    # Get data
-                    x = df[row_feature].values
-                    
-                    # Generate bins based on minimum and maximum and number of bars
-                    bins = np.linspace(df[row_feature].min(),df[row_feature].max(),num_bars)
-
-                    # Pick color
-                    color = _get_color_val(0,1)
-
-                    # Set series-specific parameters                
-                    ## Set lower value to start bars from
-                    plot_kwargs[plot_type]['bins'] = bins
-                    
-                    ## Set series label
-                    plot_kwargs[plot_type]['label'] = row_feature
-                    
-                    ## Set bar colors
-                    plot_kwargs[plot_type]['color'] = color
-                    
-                    ## Set bar edge color (default is color of current bar unless provided by user)
-                    if not bar_edge_color:
-                        plot_kwargs[plot_type]['edgecolor'] = color
-                    
-                    # Plot histogram
-                    ax.hist(x,**plot_kwargs[plot_type])
-                else:                    
-                    # Get unique category values
-                    unique_row_feature_values = feature_attributes[row_feature]['feature_value_order']
-                    
-                    # Generate bins based on minimum and maximum and number of bars
-                    bins = np.linspace(df[col_feature].min(),df[col_feature].max(),num_bars)
-                    
-                    # Plot a histogram for the column-feature for each row-feature value
-                    for unique_feature_value_ind,unique_feature_value in enumerate(unique_row_feature_values):
-                        # Obtain color of current histogram
-                        color = feature_attributes[row_feature]['feature_value_colors'][unique_feature_value]
-                        
-                        # Get data for current histogram
-                        data = df[col_feature][df[row_feature]==unique_feature_value].values
-            
-                        # Set series-specific parameters                
-                        ## Set lower value to start bars from
-                        plot_kwargs[plot_type]['bins'] = bins
-                        
-                        ## Set series label
-                        plot_kwargs[plot_type]['label'] = unique_row_feature_values
-                        
-                        ## Set bar colors
-                        plot_kwargs[plot_type]['color'] = color
-                        
-                        ## Set bar edge color (default is color of current bar unless provided by user)
-                        if not bar_edge_color:
-                            plot_kwargs[plot_type]['edgecolor'] = color
-                        
-                        # Plot current histogram
-                        ax.hist(data,**plot_kwargs[plot_type])
-                    
-                    # Make all bars in multiple overlapping histogram plot visible
-                    ## Get number of histograms
-                    histogram_count = len(unique_row_feature_values)
-            
-                    ## Collect Patch objects representing bars at the same position
-                    bars = {}
-                    for bar in ax.patches:
-                        # Get current bar position
-                        bar_position = bar.get_x()
-                        
-                        # Initialize x-position list in bar dictionary if not present
-                        if bar_position not in bars:
-                            bars[bar_position] = []
-                        
-                        # Add current bar to collection of bars at that position
-                        bars[bar_position].append(bar)
-                                                
-                    ## Sort bars based on height so smallest is visible
-                    for bar_position, bar_group in bars.iteritems():
-                        # Sort bars by height order for current bar group at current position
-                        if len(bar_group) > 1:
-                            # Sort by height
-                            bar_group = sorted(bar_group, key=lambda x: x.get_height(),reverse=True)
-                            
-                            # Set layer position to current order
-                            for bar_ind,bar in enumerate(bar_group):
-                                bar.set_zorder(bar_ind)
-            elif plot_type == 'bar':
-                # Get row feature values and counts sorted by ascending counts
-                sorted_row_values = feature_attributes[row_feature]['feature_value_order']
-                sorted_row_value_counts = feature_attributes[row_feature]['feature_value_counts']
-                
-                # Set tick-labels
-                tick_labels = sorted_row_values
-                
-                # Set bar and tick-label positions
-                bar_positions = np.arange(len(sorted_row_values))
-                                
-                # Draw bar chart based on whether on- or off-diagonal
-                if diagonal_flag:
-                    # Pick color
-                    color = _get_color_val(0,1) # Just pick first color
-                    
-                    # Set series-specific parameters
-                    ## Set lower value to start bars from
-                    plot_kwargs[plot_type]['left'] = 0
-                    
-                    ## Set bar colors
-                    plot_kwargs[plot_type]['color'] = color
-                    
-                    ## Set bar edge color (default is color of current bar unless provided by user)
-                    if not bar_edge_color:
-                        plot_kwargs[plot_type]['edgecolor'] = color
-                    
-                    # Draw bar plot
-                    bars = ax.barh(bar_positions,sorted_row_value_counts,**plot_kwargs[plot_type])
-
-                    # Set each bar as the color corresponding to each row feature value 
-                    for sorted_row_value_ind,sorted_row_value in enumerate(sorted_row_values):
-                        bar_color = feature_attributes[row_feature]['feature_value_colors'][sorted_row_value]
-                        
-                        bars[sorted_row_value_ind].set_color(bar_color)
-                        
-                        if not bar_edge_color:
-                            bars[sorted_row_value_ind].set_edgecolor(bar_color)
-                        else:
-                            bars[sorted_row_value_ind].set_edgecolor(bar_edge_color)
-                        
-                        bars[sorted_row_value_ind].set_label(sorted_row_value)
-                else:                    
-                    # Obtain column feature
-                    unique_col_feature_values = feature_attributes[col_feature]['feature_value_order']
-
-                    # Get the row feature count data for each value of the column feature and sort in descending order  
-                    split_data = {}
-                    for unique_col_feature_value in unique_col_feature_values:
-                        # Find and save data of row feature with current value of column feature,
-                        # count the number of each row feature value, and sort by the order
-                        # determined by the total count of each row feature value
-                        sorted_filtered_data = df[row_feature][df[col_feature]==unique_col_feature_value].value_counts()[sorted_row_values]
-                        
-                        # Fill N/A values with zero
-                        sorted_filtered_data.fillna(0,inplace=True)
-                        
-                        # Add data to dictionary
-                        split_data[str(unique_col_feature_value)] = sorted_filtered_data.values
-                        
-                    # Initalize value for bottom bar for stacked bar charts
-                    bottom_bar_buffer = np.zeros(len(sorted_row_values))
-
-                    # Plot stacked bars for row feature data corresponding to each column feature value
-                    for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):                                
-                        # Get color for bars
-                        color = feature_attributes[col_feature]['feature_value_colors'][unique_col_feature_value]
-                        
-                        # Get data for current col_feature value and column_feature
-                        data = split_data[str(unique_col_feature_value)]
-                
-                        # Add previous values to current buffer
-                        if unique_col_feature_value_ind:
-                            previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
-                            
-                            bottom_bar_buffer = bottom_bar_buffer + split_data[str(previous_feature_value)]                                                
-                                                
-                        # Set series-specific parameters
-                        ## Set lower value to start bars from
-                        plot_kwargs[plot_type]['left'] = bottom_bar_buffer
-                        
-                        # Set bar colors
-                        plot_kwargs[plot_type]['color'] = color
-                        
-                        ## Set bar edge color (default is color of current bar unless provided by user)
-                        if not bar_edge_color:
-                            plot_kwargs[plot_type]['edgecolor'] = color
-                        
-                        # Plot bars corresponding to current series
-                        ax.barh(bar_positions,data,**plot_kwargs[plot_type])
-                    
-                # Set y-tick positions and labels if against left-side                    
-                if left_edge_flag:
-                    ax.set_yticks(bar_positions)
-                    ax.set_yticklabels(tick_labels,size=tick_label_size,color=text_and_line_color)
+            if not zoom:
+                graph_subplot(ax,df,col_feature,row_feature,feature_attributes,plot_type=plot_type,scatter_plot_filter=scatter_plot_filter,plot_kwargs=plot_kwargs,diagonal_flag=diagonal_flag,num_bars=num_bars,bar_edge_color=bar_edge_color,left_edge_flag=left_edge_flag,tick_label_size=tick_label_size,text_and_line_color=text_and_line_color)
+            else:
+                pass
                         
             # Set y- and x-axis labels
             if left_edge_flag:
