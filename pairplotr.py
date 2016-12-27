@@ -51,10 +51,15 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
 
     # Get number of features
     feature_count = len(plot_vars)
-        
+    
     # Derive orders and colors of each categorical feature value based on ascending value count
+    if scatter_plot_filter:
+        feature_list = list(set(plot_vars+[scatter_plot_filter])) # Make sure the scatter plot filter is included
+    else:
+        feature_list = list(plot_vars)
+    
     feature_attributes = {}
-    for feature in plot_vars:
+    for feature in feature_list:
         # Get feature type
         feature_type = data_types[feature]
         
@@ -99,7 +104,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
         plot_pair_grid(df,plot_vars=plot_vars,data_types=data_types,
                        bar_alpha=bar_alpha,num_bars=num_bars,
                        figure_parameters=figure_parameters,
-                       feature_attributes=feature_attributes, # fig_size=fig_size,fig_aspect=fig_aspect,
+                       feature_attributes=feature_attributes, 
                        scatter_plot_filter=scatter_plot_filter)
     else:
         # Set figure parameters
@@ -109,27 +114,34 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
         figure_parameters['fig_width'] = 0.5*fig_size
         
         # Plot single graph
-        plot_single_comparison(df,features=zoom,data_types=data_types,
+        _plot_single_comparison(df,features=zoom,data_types=data_types,
                                figure_parameters=figure_parameters,
                                feature_attributes=feature_attributes)
         
-def plot_single_comparison(df,features=[],data_types=[],figure_parameters={},
+def _plot_single_comparison(df,features=[],data_types={},figure_parameters={},
                            feature_attributes={}):
     """
+    Plots a single cell of the pairgrid plot given a Pandas dataframe (df), a list of the row-
+    and column-features (features), a dictionary of feature attributes (feature_attributes)
+    containing the desired ordering/colors of each value for a given feature, a dictionary
+    of the data types (e.g. 'category' or 'numerical') for at least the provided features
+    (data_types), and a dictionary of figure parameters that includes the number of rows/columns
+    and the figure dimensions. This method is meant to be used by the compare_data() method.
     """
-    # Check inputs
+    # Check input types and lengths
     if not features or len(features) != 2 or type(features) is not list:
         raise Exception('Keyword argument, features, must be present and \
                         be a list of only 2 features.')
-    
+        
     if not data_types:
         raise Exception("A dictionary of data types ('category' or 'numerical'\
                         must be present as the data_types keyword argument.")
-    
+        
     # Get row and column features and types
     row_feature = features[0]
     col_feature = features[1]
     
+    # Check for their presence in the data types dictionary
     if row_feature in data_types:
         row_type = data_types[row_feature]
     else:
@@ -143,30 +155,32 @@ def plot_single_comparison(df,features=[],data_types=[],figure_parameters={},
                         argument'%(col_feature))
             
     # Choose plot type and plot
-    if row_type == 'numerical' and col_type == 'numerical':
-        pass
-    elif row_type == 'category' and col_type == 'numerical':
+    if row_type == 'category' and col_type == 'numerical':
         unique_row_values = feature_attributes[row_feature]['feature_value_order']
         
         colors = feature_attributes[row_feature]['feature_value_colors']
         
         plot_label_vs_continuous(df,col_feature,row_feature,
                                  output_labels=list(unique_row_values),
-                                 colors=colors,alpha=0.6,figure_parameters=figure_parameters, #figure_size=[12,6],
+                                 colors=colors,alpha=0.6,figure_parameters=figure_parameters,
                                  title=[],y_label=[],num_bars=20,
                                  plot_medians=True,plot_quantiles=False)
         
     elif row_type == 'numerical' and col_type == 'category':
-        pass
+        raise Exception('The first feature of the zoom keyword argument is numerical and the 2nd is \
+                        There are no current plans to support this type of plot.')
     elif row_type == 'category' and col_type == 'category':
-        pass
+        unique_col_values = feature_attributes[col_feature]['feature_value_order']
+        
+        colors = [feature_attributes[col_feature]['feature_value_colors'][col_value] for col_value in unique_col_values]
+        
+        plot_label_versus_label(df,features[0],features[1],output_labels=list(unique_col_values),
+                            colors=colors,alpha=0.6,figure_parameters=figure_parameters,x_label=[],title=[])
+    elif row_type == 'numerical' and col_type == 'numerical':
+        raise NameError('For the moment')
     else:
         raise NameError('Logic error involving single plot and feature types')
         
-    
-    
-    
-
 def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                    num_bars=20,dpi=[],figure_parameters=[], #fig_size=12,fig_aspect=1,
                    scatter_plot_filter=None,feature_attributes={}):    
@@ -189,15 +203,11 @@ def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     # Count number of features
     number_features = len(plot_vars)
     
-    ## Set number of rows and columns
-    #row_count = len(plot_vars)
-    #column_count = len(plot_vars)        
-    
     # Raise error if the desired feature to color the scatter plots isn't found and/or is not categorical
     if scatter_plot_filter:
-        if scatter_plot_filter not in plot_vars:
-            raise Exception("The scatter_plot_filter keyword argument, %s, is not one of the \
-                            features."%(scatter_plot_filter))
+        if scatter_plot_filter not in df.columns:
+            raise Exception("The scatter_plot_filter keyword argument, %s, is not one of the " \
+                            "features."%(scatter_plot_filter))
         
         if data_types[scatter_plot_filter] != 'category':
             raise Exception("The scatter_plot_filter keyword argument, %s, is not defined as a \
@@ -316,7 +326,12 @@ def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                                      axis_ind,**axis_kwargs)
                                     
             # Generate plot in axis
-            graph_subplot(ax,df,col_feature,row_feature,feature_attributes,plot_type=plot_type,scatter_plot_filter=scatter_plot_filter,plot_kwargs=plot_kwargs,diagonal_flag=diagonal_flag,num_bars=num_bars,bar_edge_color=bar_edge_color,left_edge_flag=left_edge_flag,tick_label_size=tick_label_size,text_and_line_color=text_and_line_color)
+            graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
+                          plot_type=plot_type,scatter_plot_filter=scatter_plot_filter,
+                          plot_kwargs=plot_kwargs,diagonal_flag=diagonal_flag,
+                          num_bars=num_bars,bar_edge_color=bar_edge_color,
+                          left_edge_flag=left_edge_flag,tick_label_size=tick_label_size,
+                          text_and_line_color=text_and_line_color)
                         
             # Set y- and x-axis labels
             if left_edge_flag:
@@ -340,10 +355,8 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                   diagonal_flag=[],num_bars=[],bar_edge_color=[],
                   left_edge_flag=[],tick_label_size=[],text_and_line_color=[]):
     """
-    Plots subplot given the axis object, dataframe, row- and column- feature names,
-    
+    Plots subplot given the axis object, dataframe, row- and column- feature names,    
     """
-    
     if plot_type == 'scatter':
         # Get data
         x = df[col_feature].values
@@ -553,146 +566,8 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
             ax.set_yticks(bar_positions)
             ax.set_yticklabels(tick_labels,size=tick_label_size,color=text_and_line_color)    
 
-
-            
-
-def _get_color_val(ind,num_series):
-    # Default colormap
-    colormap = 'viridis'
-    color_map = plt.get_cmap(colormap)
-    
-    custom_map = ['gray','cyan','orange','magenta','lime','red','purple','blue','yellow','black']
-    
-    # Choose color
-    if num_series > len(custom_map):
-        if not ind:
-            color = 'gray'
-        else:
-            if num_series != 1:
-                color = color_map(float(ind)/(float(num_series)-1))
-            else:
-                color = color_map(float(ind)/(float(num_series)))
-            
-    else:
-        color = custom_map[ind]
-    
-    return color
-
-def infer_feature_types(df,suppress_report=False):
-    """
-    Returns dictionary of features and corresponding datatypes 
-    (Either 'category' or 'numerical') given a dataframe
-    
-    This can easily misclassify integers, since they can represent 
-    either counts or categories. Additionally, one should try to 
-    avoid using floats as integers.
-    
-    A summary is printed at the end so the user can manually modify
-    the resulting dictionary.        
-    """
-    # Initialize output dictionary
-    data_types = {}
-
-    # Consider each feature
-    for feature in list(df.columns):
-        # Obtain unique feature values
-        unique_feature_values = list(set(df[feature]))
-        
-        # Obtain unique feature types
-        unique_feature_types = list(set(type(unique_item) for unique_item in unique_feature_values))
-
-        # Check for mixed types within feature
-        if len(unique_feature_types) != 1:
-            raise Exception("Mixed types in feature '%s' encountered. This is presently unsupported."%(feature))
-
-        # Check that all input types are expected
-        unique_feature_type = unique_feature_types[0]
-        if not (unique_feature_type is not str or unique_feature_type is not int or unique_feature_type is not np.int64 or unique_feature_type is not float or unique_feature_type is not np.float64):
-            raise Exception("Feature '%s' is not of type str, int, numpy.int64, float, or numpy.float64. Its listed feature is %s This is currently unsupported"%(feature,unique_feature_type))
-        
-        # Ignore features that appear to be ids, though warn user
-        if unique_feature_type is str or unique_feature_type is int or unique_feature_type is np.int64:
-            if len(unique_feature_values) != len(df[feature]):
-                data_types[feature] = 'category'
-            else:
-                if not suppress_report:
-                    print "WARNING: feature '%s' appears to be an id and will not be included in the plot"%(feature)
-        else:
-            data_types[feature] = 'numerical'
-    
-    # Print report
-    if not suppress_report:
-        print ''
-        print 40*'-'
-        print 'Data type\tFeature'
-        print 40*'-'    
-        for key in data_types:
-            print '%s\t%s'%(data_types[key],key)
-        print 40*'-'
-    
-    # Return
-    return data_types
-
-def continuous_pair_grid_vs_label(df,plot_vars=[],hue_feature=[],scatter_alpha=0.2,
-                                  bar_alpha=0.3,num_bars=20,scatter_size=45,
-                                  palette=['grey','orange','red'],fig_size=6,fig_aspect=1,
-                                  filter_feature=[],filter_feature_value=[],plot_medians=False,
-                                  plot_means=False,large_text_size=20,small_text_size=16):
-
-    """
-    Graphs scatter plot of each feature versus the other in a grid (Seaborn PairGrid plot) 
-    with the diagonals being the distribution of the corresponding feature. Sets color of 
-    each data point based on user-designated feature (hue_feature).
-    
-    Requires at least a list of continuous features (plot_vars) and the hue_feature. 
-    """
-    # Change overall font size
-    matplotlib.rcParams['font.size'] = large_text_size
-
-    # Use all features if not explicitly provided by user
-    if not plot_vars:
-        plot_vars = list(df.columns)
-    
-    # Filter data if desired
-    if filter_feature and filter_feature_value:
-        data = df[df[filter_feature]==filter_feature_value]
-    elif not filter_feature and not filter_feature_value:
-        data = df
-    else:
-        raise NameError('There must be BOTH a filter_feature and its corresponding filter_feature_value')
-    
-    # Set hue_feature to None if not provided by user
-    if not hue_feature:
-        hue_feature = None
-    
-    # Graph pair grid
-    g = sns.PairGrid(data,vars=plot_vars,hue=hue_feature,
-                     size=fig_size,aspect=fig_aspect,palette=palette) 
-    
-    # Add histograms to diagonals
-    g.map_diag(plt.hist,alpha=bar_alpha,bins=num_bars)
-    
-    # Plot median lines to histograms in diagonals if specified
-    def plot_median(x,color=[],label=[]): 
-        plt.axvline(x.median(),alpha=1.0,label=label,color=color)
-        
-    # Plot median lines to histograms in diagonals if specified
-    def plot_mean(x,color=[],label=[]): 
-        plt.axvline(x.mean(),alpha=0.5,label=label,color=color,linestyle='--')
-        
-    if plot_medians:        
-        g.map_diag(plot_median)
-    if plot_means:
-        g.map_diag(plot_mean)
-    
-    g.map_offdiag(plt.scatter,alpha=scatter_alpha,s=scatter_size)
-    
-    # Add legend if there is a hue feature
-    if hue_feature:
-        g.add_legend();
-        
 def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels=[],
-                            colors=[],alpha=0.6,figure_parameters={}, title=[],y_label=[], #figure_size=[12,6],
+                            colors=[],alpha=0.6,figure_parameters={},title=[],y_label=[],
                             num_bars=20,plot_medians=True,plot_quantiles=False):
     """
     Plots the distributions of the input_feature for each output_label_feature value
@@ -845,7 +720,6 @@ def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels
     # Show plot
     plt.show()        
     
-
 def patch_height_sort(patch_one,patch_two):
     """
     Returns 1 flag if second patch higher
@@ -855,9 +729,8 @@ def patch_height_sort(patch_one,patch_two):
     else:
         return -1
 
-    
 def plot_label_versus_label(df,input_label_feature,output_label_feature,output_labels=[],
-                            colors=[],alpha=0.6,figure_size=[12,6],x_label=[],title=[]):
+                            colors=[],alpha=0.6,figure_parameters={},x_label=[],title=[]):
     # Form automatic title if not provided
     if not title:
         title = 'Proportations of '+output_label_feature+' category within '+input_label_feature+' populations'
@@ -865,7 +738,7 @@ def plot_label_versus_label(df,input_label_feature,output_label_feature,output_l
     # Set font attributes
     large_text_size = 14
     small_text_size = 12
-
+        
     # Set axis/legend labels
     y_label = input_label_feature
     if not x_label:
@@ -875,7 +748,9 @@ def plot_label_versus_label(df,input_label_feature,output_label_feature,output_l
     label_by_label = df[[input_label_feature,output_label_feature]].pivot_table(columns=[output_label_feature],index=[input_label_feature],aggfunc=len)
 
     # Plot pivot table as stacked column chart
-    ax = label_by_label.plot(kind='barh',stacked=True,color=colors,alpha=alpha,figsize=figure_size)
+    ax = label_by_label.plot(kind='barh',stacked=True,color=colors,alpha=alpha,
+                             figsize=[figure_parameters['fig_height'],figure_parameters['fig_width']]) #figsize=figure_size
+                             
 
     # Set title, x and y labels, and legend values
     plt.title(title,size=large_text_size)
@@ -909,3 +784,138 @@ def plot_label_versus_label(df,input_label_feature,output_label_feature,output_l
     
     # Hide the right and top spines        
     plt.show()
+    
+def _get_color_val(ind,num_series):
+    # Default colormap
+    colormap = 'viridis'
+    color_map = plt.get_cmap(colormap)
+    
+    custom_map = ['gray','cyan','orange','magenta','lime','red','purple','blue','yellow','black']
+    
+    # Choose color
+    if num_series > len(custom_map):
+        if not ind:
+            color = 'gray'
+        else:
+            if num_series != 1:
+                color = color_map(float(ind)/(float(num_series)-1))
+            else:
+                color = color_map(float(ind)/(float(num_series)))
+            
+    else:
+        color = custom_map[ind]
+    
+    return color
+
+def infer_feature_types(df,suppress_report=False):
+    """
+    Returns dictionary of features and corresponding datatypes 
+    (Either 'category' or 'numerical') given a dataframe
+    
+    This can easily misclassify integers, since they can represent 
+    either counts or categories. Additionally, one should try to 
+    avoid using floats as integers.
+    
+    A summary is printed at the end so the user can manually modify
+    the resulting dictionary.        
+    """
+    # Initialize output dictionary
+    data_types = {}
+
+    # Consider each feature
+    for feature in list(df.columns):
+        # Obtain unique feature values
+        unique_feature_values = list(set(df[feature]))
+        
+        # Obtain unique feature types
+        unique_feature_types = list(set(type(unique_item) for unique_item in unique_feature_values))
+
+        # Check for mixed types within feature
+        if len(unique_feature_types) != 1:
+            raise Exception("Mixed types in feature '%s' encountered. This is presently unsupported."%(feature))
+
+        # Check that all input types are expected
+        unique_feature_type = unique_feature_types[0]
+        if not (unique_feature_type is not str or unique_feature_type is not int or unique_feature_type is not np.int64 or unique_feature_type is not float or unique_feature_type is not np.float64):
+            raise Exception("Feature '%s' is not of type str, int, numpy.int64, float, or numpy.float64. Its listed feature is %s This is currently unsupported"%(feature,unique_feature_type))
+        
+        # Ignore features that appear to be ids, though warn user
+        if unique_feature_type is str or unique_feature_type is int or unique_feature_type is np.int64:
+            if len(unique_feature_values) != len(df[feature]):
+                data_types[feature] = 'category'
+            else:
+                if not suppress_report:
+                    print "WARNING: feature '%s' appears to be an id and will not be included in the plot"%(feature)
+        else:
+            data_types[feature] = 'numerical'
+    
+    # Print report
+    if not suppress_report:
+        print ''
+        print 40*'-'
+        print 'Data type\tFeature'
+        print 40*'-'    
+        for key in data_types:
+            print '%s\t%s'%(data_types[key],key)
+        print 40*'-'
+    
+    # Return
+    return data_types
+
+def continuous_pair_grid_vs_label(df,plot_vars=[],hue_feature=[],scatter_alpha=0.2,
+                                  bar_alpha=0.3,num_bars=20,scatter_size=45,
+                                  palette=['grey','orange','red'],fig_size=6,fig_aspect=1,
+                                  filter_feature=[],filter_feature_value=[],plot_medians=False,
+                                  plot_means=False,large_text_size=20,small_text_size=16):
+
+    """
+    Graphs scatter plot of each feature versus the other in a grid (Seaborn PairGrid plot) 
+    with the diagonals being the distribution of the corresponding feature. Sets color of 
+    each data point based on user-designated feature (hue_feature).
+    
+    Requires at least a list of continuous features (plot_vars) and the hue_feature. 
+    """
+    # Change overall font size
+    matplotlib.rcParams['font.size'] = large_text_size
+
+    # Use all features if not explicitly provided by user
+    if not plot_vars:
+        plot_vars = list(df.columns)
+    
+    # Filter data if desired
+    if filter_feature and filter_feature_value:
+        data = df[df[filter_feature]==filter_feature_value]
+    elif not filter_feature and not filter_feature_value:
+        data = df
+    else:
+        raise NameError('There must be BOTH a filter_feature and its corresponding filter_feature_value')
+    
+    # Set hue_feature to None if not provided by user
+    if not hue_feature:
+        hue_feature = None
+    
+    # Graph pair grid
+    g = sns.PairGrid(data,vars=plot_vars,hue=hue_feature,
+                     size=fig_size,aspect=fig_aspect,palette=palette) 
+    
+    # Add histograms to diagonals
+    g.map_diag(plt.hist,alpha=bar_alpha,bins=num_bars)
+    
+    # Plot median lines to histograms in diagonals if specified
+    def plot_median(x,color=[],label=[]): 
+        plt.axvline(x.median(),alpha=1.0,label=label,color=color)
+        
+    # Plot median lines to histograms in diagonals if specified
+    def plot_mean(x,color=[],label=[]): 
+        plt.axvline(x.mean(),alpha=0.5,label=label,color=color,linestyle='--')
+        
+    if plot_medians:        
+        g.map_diag(plot_median)
+    if plot_means:
+        g.map_diag(plot_mean)
+    
+    g.map_offdiag(plt.scatter,alpha=scatter_alpha,s=scatter_size)
+    
+    # Add legend if there is a hue feature
+    if hue_feature:
+        g.add_legend();
