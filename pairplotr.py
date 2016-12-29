@@ -10,8 +10,9 @@ import matplotlib.cm as cmx
 import pandas as pd
 
 def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
-                 num_bars=20,fig_size=12,fig_aspect=1,
-                 scatter_plot_filter=None,zoom=[]):
+                 num_bars=20,fig_size=16,fig_aspect=1,marker_size=2,
+                 marker_alpha=0.5,scatter_plot_filter=None,zoom=[],
+                 plot_medians=True):
     """
     Outputs a pairplot given a Pandas dataframe with these formats for Row feature|Column feature
     combinations in either on- or off-diagonal cells: 
@@ -36,6 +37,36 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
         'fig_width': []
     }
     
+    # Encode plot type keyword arguments
+    plot_kwargs = {
+        'scatter': {
+            'linestyle': 'None',
+            'marker': 'o',
+            'markersize': marker_size,
+            'alpha': marker_alpha
+        },
+        'histogram': {
+            'alpha': bar_alpha
+        },
+        'bar': {
+            'alpha': bar_alpha,
+            'align': 'center'
+        }
+    }
+    
+    # Set text and line color
+    grayLevel = 0.6
+    text_and_line_color = (0.0,0.0,0.0,grayLevel)
+    
+    # Create axis keyword arguments
+    axis_kwargs = {}
+
+    # Set no x-tick, x-tick label, or y-tick generation as default for grid pair plots    
+    if not zoom:
+        axis_kwargs['xticks'] = []
+        axis_kwargs['yticks'] = []
+        axis_kwargs['xticklabels'] = []
+        
     # Use all features if not explicitly provided by user
     if not plot_vars:
         plot_vars = list(df.columns)
@@ -92,34 +123,45 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             for feature_value_ind,feature_value in enumerate(list(reversed(sorted_feature_values))):
                 feature_attributes[feature]['feature_value_colors'][feature_value] = _get_color_val(feature_value_ind,feature_value_count)    
     
-    # Plot pair grid or single comparsion
+    # Generate figure settings
     if not zoom:
-        # Set figure parameters
         figure_parameters['row_count'] = feature_count
         figure_parameters['col_count'] = feature_count
         figure_parameters['fig_height'] = fig_size
         figure_parameters['fig_width'] = fig_size*fig_aspect
-        
-        # Graph pair grid
-        plot_pair_grid(df,plot_vars=plot_vars,data_types=data_types,
-                       bar_alpha=bar_alpha,num_bars=num_bars,
-                       figure_parameters=figure_parameters,
-                       feature_attributes=feature_attributes, 
-                       scatter_plot_filter=scatter_plot_filter)
     else:
-        # Set figure parameters
         figure_parameters['row_count'] = 1
         figure_parameters['col_count'] = 1
         figure_parameters['fig_height'] = fig_size
         figure_parameters['fig_width'] = 0.5*fig_size
         
+    # Generate figure
+    fig = plt.figure(figsize=[figure_parameters['fig_height'],
+                              figure_parameters['fig_width']])
+    
+    # Plot pair grid or single comparsion
+    if not zoom:
+        # Make sure there are no frames in the pair-grid plot
+        axis_kwargs['frame_on'] = False
+
+        # Graph pair grid
+        plot_pair_grid(df,fig,plot_vars=plot_vars,data_types=data_types,
+                       bar_alpha=bar_alpha,num_bars=num_bars,
+                       figure_parameters=figure_parameters,
+                       feature_attributes=feature_attributes, 
+                       scatter_plot_filter=scatter_plot_filter,plot_kwargs=plot_kwargs,
+                       axis_kwargs=axis_kwargs,text_and_line_color=text_and_line_color)
+    else:
         # Plot single graph
-        _plot_single_comparison(df,features=zoom,data_types=data_types,
+        _plot_single_comparison(df,fig,features=zoom,data_types=data_types,
                                figure_parameters=figure_parameters,
-                               feature_attributes=feature_attributes)
+                               feature_attributes=feature_attributes,plot_kwargs=plot_kwargs,
+                               axis_kwargs=axis_kwargs,text_and_line_color=text_and_line_color,
+                               plot_medians=plot_medians)
         
-def _plot_single_comparison(df,features=[],data_types={},figure_parameters={},
-                           feature_attributes={}):
+def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={},
+                           feature_attributes={},plot_kwargs={},axis_kwargs={},text_and_line_color=(),
+                           plot_medians=True):
     """
     Plots a single cell of the pairgrid plot given a Pandas dataframe (df), a list of the row-
     and column-features (features), a dictionary of feature attributes (feature_attributes)
@@ -153,7 +195,10 @@ def _plot_single_comparison(df,features=[],data_types={},figure_parameters={},
     else:
         raise Exception('Feature %s is not in the data_types keyword \
                         argument'%(col_feature))
-            
+
+    # Get axis    
+    ax = fig.add_subplot(1,1,1,**axis_kwargs)
+    
     # Choose plot type and plot
     if row_type == 'category' and col_type == 'numerical':
         unique_row_values = feature_attributes[row_feature]['feature_value_order']
@@ -164,7 +209,7 @@ def _plot_single_comparison(df,features=[],data_types={},figure_parameters={},
                                  output_labels=list(unique_row_values),
                                  colors=colors,alpha=0.6,figure_parameters=figure_parameters,
                                  title=[],y_label=[],num_bars=20,
-                                 plot_medians=True,plot_quantiles=False)
+                                 plot_medians=plot_medians,plot_quantiles=False,text_and_line_color=text_and_line_color)
         
     elif row_type == 'numerical' and col_type == 'category':
         raise Exception('The first feature of the zoom keyword argument is numerical and the 2nd is \
@@ -174,16 +219,19 @@ def _plot_single_comparison(df,features=[],data_types={},figure_parameters={},
         
         colors = [feature_attributes[col_feature]['feature_value_colors'][col_value] for col_value in unique_col_values]
         
-        plot_label_versus_label(df,features[0],features[1],output_labels=list(unique_col_values),
-                            colors=colors,alpha=0.6,figure_parameters=figure_parameters,x_label=[],title=[])
+        plot_label_versus_label(df,ax,features[0],features[1],output_labels=list(unique_col_values),
+                            colors=colors,alpha=0.6,figure_parameters=figure_parameters,x_label=[],title=[],
+                            feature_attributes=feature_attributes,plot_kwargs=plot_kwargs,bar_edge_color='w',
+                            text_and_line_color=text_and_line_color)
     elif row_type == 'numerical' and col_type == 'numerical':
         raise NameError('For the moment')
     else:
         raise NameError('Logic error involving single plot and feature types')
         
-def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
+def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
                    num_bars=20,dpi=[],figure_parameters=[], #fig_size=12,fig_aspect=1,
-                   scatter_plot_filter=None,feature_attributes={}):    
+                   scatter_plot_filter=None,feature_attributes={},plot_kwargs={},axis_kwargs={},
+                   text_and_line_color=()):    
     
     # Move first categorical feature to front column in front of a first numerical feature
     feature_types = [data_types[feature] for feature in plot_vars]
@@ -214,14 +262,10 @@ def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
                             category in the data_types keyword argument. Only categorical \
                             features can be used to color scatter plots."%(scatter_plot_filter))
         
-    # Set text and line color
-    grayLevel = 0.6
-    text_and_line_color = (0.0,0.0,0.0,grayLevel)
-    
     # Set default text font, color, and size
     text_family = 'sans-serif'
     text_font = 'Helvetica Neue Light'
-    text_font_size = 8
+    text_font_size = 12
     tick_label_size = text_font_size-3
     
     text_properties = {
@@ -238,36 +282,11 @@ def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     # Set bar parameters
     bar_edge_color = 'w'
     
-    # Set marker parameters
-    marker_size = 2
-    marker_alpha = 0.5
-    
-    # Encode default plot parameters
-    plot_kwargs = {
-        'scatter': {
-            'linestyle': 'None',
-            'marker': 'o',
-            'markersize': marker_size,
-            'alpha': marker_alpha
-        },
-        'histogram': {
-            'alpha': bar_alpha
-        },
-        'bar': {
-            'alpha': bar_alpha,
-            'align': 'center'
-        }
-    }
-    
     # Set bar_edge_color as default if provided by user
     if bar_edge_color:
         plot_kwargs['histogram']['edgecolor'] = bar_edge_color
         plot_kwargs['bar']['edgecolor'] = bar_edge_color
     
-    # Generate figure
-    fig = plt.figure(figsize=[figure_parameters['fig_height'],
-                              figure_parameters['fig_width']])
-                
     # Graph axes
     for axis_row_ind in range(number_features):
         # Get the row feature and its type
@@ -308,19 +327,11 @@ def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             else:
                 raise Exception("Logic error invovling plot types encountered.")
             
-            # Create axis keyword arguments
-            axis_kwargs = {
-                'frame_on': False,
-                'xticks': [],
-                'yticks': [],
-                'xticklabels': [],
-            }
-            
             # Set axis index
             axis_ind = axis_row_ind*number_features+axis_column_ind+1
-            
+
             # Add axis subplot
-            if plot_type or left_edge_flag:
+            if plot_type or left_edge_flag or bottom_edge_flag:
                 ax = fig.add_subplot(figure_parameters['row_count'],
                                      figure_parameters['col_count'],
                                      axis_ind,**axis_kwargs)
@@ -337,23 +348,17 @@ def plot_pair_grid(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             if left_edge_flag:
                 ax.set_ylabel(row_feature,color=text_and_line_color,size=text_font_size)
                 ax.get_yaxis().set_label_coords(-label_padding,0.5)
-            if bottom_edge_flag:
+            if bottom_edge_flag:                
                 ax.set_xlabel(col_feature,color=text_and_line_color,size=text_font_size) 
-
+    
             # Set y-axis tick labels if on left 
             if left_edge_flag:
                 ax.set_yticklabels(ax.get_yticklabels(),text_properties['tick_labels'])
-                
-            # Set x-axis tick labels if on bottom
-            if bottom_edge_flag:
-                for tick in ax.get_xticklabels():
-                    tick.set_fontname("Helvetica Neue Light")
-                    tick.label.set_fontsize(tick_label_size)
-                    
+                                    
 def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                   plot_type=[],plot_kwargs=[],scatter_plot_filter=[],
                   diagonal_flag=[],num_bars=[],bar_edge_color=[],
-                  left_edge_flag=[],tick_label_size=[],text_and_line_color=[]):
+                  left_edge_flag=[],tick_label_size=[],text_and_line_color=()):
     """
     Plots subplot given the axis object, dataframe, row- and column- feature names,    
     """
@@ -470,6 +475,7 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                     # Set layer position to current order
                     for bar_ind,bar in enumerate(bar_group):
                         bar.set_zorder(bar_ind)
+                                                
     elif plot_type == 'bar':
         # Get row feature values and counts sorted by ascending counts
         sorted_row_values = feature_attributes[row_feature]['feature_value_order']
@@ -564,11 +570,11 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
         # Set y-tick positions and labels if against left-side                    
         if left_edge_flag:
             ax.set_yticks(bar_positions)
-            ax.set_yticklabels(tick_labels,size=tick_label_size,color=text_and_line_color)    
-
+            ax.set_yticklabels(tick_labels,size=tick_label_size,color=text_and_line_color)
+            
 def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels=[],
                             colors=[],alpha=0.6,figure_parameters={},title=[],y_label=[],
-                            num_bars=20,plot_medians=True,plot_quantiles=False):
+                            num_bars=20,plot_medians=True,plot_quantiles=False,text_and_line_color=()):
     """
     Plots the distributions of the input_feature for each output_label_feature value
     """
@@ -603,7 +609,7 @@ def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels
         
         # Set series color
         if colors:
-            series_color = colors[unique_output_label_feature_value_ind]
+            series_color = colors[unique_output_label_feature_value]
         else:
             series_color = cmap(unique_output_label_feature_value_ind)
                     
@@ -625,7 +631,7 @@ def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels
             
             # Set series color
             if colors:
-                series_color = colors[unique_output_label_feature_value_ind]
+                series_color = colors[unique_output_label_feature_value]
             else:
                 series_color = cmap(unique_output_label_feature_value_ind)
                 
@@ -662,7 +668,6 @@ def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels
         unique_output_label_feature_values
         legend_labels = output_labels
         plt.legend(h,unique_output_label_feature_values,loc='center left',bbox_to_anchor=(1, 0.5))
-        #plt.legend(legend_labels,loc='center left',bbox_to_anchor=(1, 0.5))
     else:
         plt.legend(loc='right',bbox_to_anchor=(1, 0.5))
 
@@ -675,7 +680,7 @@ def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels
 
     # Set left frame attributes    
     ax.spines['bottom'].set_linewidth(1.0)
-    ax.spines['bottom'].set_color('gray')
+    ax.spines['bottom'].set_color(text_and_line_color)
     
     # Remove all but bottom frame line    
     ax.spines['right'].set_visible(False)
@@ -729,56 +734,123 @@ def patch_height_sort(patch_one,patch_two):
     else:
         return -1
 
-def plot_label_versus_label(df,input_label_feature,output_label_feature,output_labels=[],
-                            colors=[],alpha=0.6,figure_parameters={},x_label=[],title=[]):
+def plot_label_versus_label(df,ax,data_feature,hue_feature,output_labels=[],
+                            colors=[],alpha=0.6,figure_parameters={},x_label=[],title=[],
+                            feature_attributes={},plot_kwargs={},bar_edge_color='w',
+                            text_and_line_color=()):
     # Form automatic title if not provided
     if not title:
-        title = 'Proportations of '+output_label_feature+' category within '+input_label_feature+' populations'
+        title = 'Proportations of '+hue_feature+' category within '+data_feature+' populations'
+
+    # Set plot_type
+    plot_type = 'bar'
 
     # Set font attributes
     large_text_size = 14
     small_text_size = 12
-        
+    
     # Set axis/legend labels
-    y_label = input_label_feature
+    y_label = data_feature
     if not x_label:
         x_label = 'Frequency'
         
     # Form pivot table between input and output label features
-    label_by_label = df[[input_label_feature,output_label_feature]].pivot_table(columns=[output_label_feature],index=[input_label_feature],aggfunc=len)
+    label_by_label = df[[data_feature,hue_feature]].pivot_table(columns=[hue_feature],index=[data_feature],aggfunc=len)
 
-    # Plot pivot table as stacked column chart
-    ax = label_by_label.plot(kind='barh',stacked=True,color=colors,alpha=alpha,
-                             figsize=[figure_parameters['fig_height'],figure_parameters['fig_width']]) #figsize=figure_size
-                             
+    # Order by specific data feature value 
+    label_by_label = label_by_label.loc[feature_attributes[data_feature]['feature_value_order']]
+    
+    # Fill in N/A values with zero
+    label_by_label.fillna(0,inplace=True)
 
+    # Obtain column feature
+    unique_col_feature_values = feature_attributes[hue_feature]['feature_value_order']
+            
+    # Initalize value for bottom bar for stacked bar charts
+    sorted_row_values = feature_attributes[data_feature]['feature_value_order']
+    bottom_bar_buffer = np.zeros(len(sorted_row_values))
+    
+    # Set tick-labels
+    tick_labels = sorted_row_values
+    
+    # Set bar and tick-label positions
+    bar_positions = np.arange(len(sorted_row_values))
+
+    # Plot stacked bars for row feature data corresponding to each column feature value
+    for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):                                
+        # Get color for bars
+        color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
+        
+        # Get data for current col_feature value and column_feature
+        data = label_by_label[unique_col_feature_value]
+        
+        # Add previous values to current buffer
+        if unique_col_feature_value_ind:
+            previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
+            
+            bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
+                                
+        # Set series-specific parameters
+        ## Set lower value to start bars from
+        plot_kwargs[plot_type]['left'] = bottom_bar_buffer
+        
+        # Set bar colors
+        plot_kwargs[plot_type]['color'] = color
+        
+        ## Set bar edge color (default is color of current bar unless provided by user)
+        if not bar_edge_color:
+            plot_kwargs[plot_type]['edgecolor'] = color
+        
+        # Plot bars corresponding to current series
+        ax.barh(bar_positions,data,**plot_kwargs[plot_type])
+        
+    # Modify horizontal plot limits so last gridline visible on x-axis
+    x_ticks = ax.get_xticks()
+    
+    x_min = x_ticks[0] #(3*xticks[0] - xticks[1])/2.
+    x_max = (3*x_ticks[-1]-x_ticks[-2])/2.
+    
+    ax.set_xlim(x_min,x_max)
+    
+    # Modify vertical plot limits so there's a bit of padding on the y-axis
+    yticks = ax.get_yticks()
+    
+    ymin = (3*yticks[0]-yticks[1])/2.
+    ymax = (3*yticks[-1]-yticks[-2])/2.
+    
+    ax.set_ylim(ymin, ymax)
+
+    # Set x-tick label sizes and colors
+    for x_tick in ax.xaxis.get_major_ticks():
+        x_tick.label.set_fontsize(small_text_size)
+        x_tick.label.set_color(text_and_line_color)
+        
+    # Set y-tick positions and labels
+    ax.set_yticks(bar_positions)
+    ax.set_yticklabels(tick_labels,size=small_text_size,color=text_and_line_color)
+    
     # Set title, x and y labels, and legend values
-    plt.title(title,size=large_text_size)
+    ax.set_title(title,size=large_text_size,color=text_and_line_color)
 
-    plt.xlabel(x_label,size=small_text_size)
-    plt.ylabel(y_label,size=small_text_size)
-
+    ax.set_xlabel(x_label,color=text_and_line_color,size=small_text_size)
+    ax.set_ylabel(y_label,color=text_and_line_color,size=small_text_size)
+    
     if output_labels:
         legend_labels = output_labels
         plt.legend(legend_labels,loc='right',bbox_to_anchor=(1.05, 0.5))
     else:
         plt.legend(loc='right',bbox_to_anchor=(1.05, 0.5))
-
-    # Modify plot limits so last gridline visible
-    xticks, xticklabels = plt.xticks()
-    xmin = xticks[0] #(3*xticks[0] - xticks[1])/2.
-    xmax = (3*xticks[-1] - xticks[-2])/2.
-    ax.set_xlim(xmin, xmax)    
-
-    # Set left frame attributes    
+    
+    # Set left frame attributes
+    ax.spines['right'].set_visible(True)
     ax.spines['left'].set_linewidth(1.0)
-    ax.spines['left'].set_color('gray')
+    ax.spines['left'].set_color(text_and_line_color)
     
     # Remove all but frame line
     ax.spines['right'].set_visible(False)
     ax.spines['top'].set_visible(False)
     ax.spines['bottom'].set_visible(False)
-
+    
     # Add grid
     ax.xaxis.grid(True,linestyle='--',linewidth=1)
     
