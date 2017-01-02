@@ -1,4 +1,4 @@
-![pairplot_demo.png](./pairplot_demo.png =250x)
+<img src="pairplotr_demo.png" alt="Drawing" style="width: 200px;"/>
 # How
 ## Installation
 For now, simply clone the respository and link to the location in your code. 
