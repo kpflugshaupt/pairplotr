@@ -1,3 +1,4 @@
+![alt tag](./pairplotr_demo.png)
 # How
 ## Installation
 For now, simply clone the respository and link to the location in your code. 
