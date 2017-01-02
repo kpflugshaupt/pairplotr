@@ -1,4 +1,4 @@
-![Alt text](./pairplotr_demo.png?raw=true)
+![pairplot_demo.png](https://github.com/JaggedParadigm/pairplotr/blob/master/pairplot_demo.png)
 # How
 ## Installation
 For now, simply clone the respository and link to the location in your code. 
