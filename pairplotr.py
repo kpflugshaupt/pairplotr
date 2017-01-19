@@ -9,7 +9,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import pandas as pd
 
-def compare_data(df,plot_vars=[],bar_alpha=0.85,data_types=None,
+def compare_data(df,plot_vars=[],bar_alpha=0.85,
                  num_bars=20,fig_size=16,fig_aspect=1,marker_size=2,
                  marker_alpha=0.5,scatter_plot_filter=None,zoom=[],
                  plot_medians=True):
@@ -71,20 +71,14 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,data_types=None,
     if not plot_vars:
         plot_vars = list(df.columns)
 
-    # Dervive data types for each feature from dataframe
-    if not data_types:
-        data_types = {}
-        for plot_var in plot_vars:    
-            if df[plot_var].dtype.name == 'category':
-                data_types[plot_var] = 'category' 
-            else:
-                data_types[plot_var] = 'numerical'
+    # Dervive data types from dataframe
+    data_types = {}
+    for plot_var in plot_vars:    
+        if df[plot_var].dtype.name == 'category':
+            data_types[plot_var] = 'category' 
+        else:
+            data_types[plot_var] = 'numerical'
     
-    # Check that all features have a corresponding data type
-    for feature in plot_vars:
-        if feature not in data_types:
-            raise Exception('Feature, %s, not found in data_types keyword argument.')
-
     # Get number of features
     feature_count = len(plot_vars)
     
@@ -883,116 +877,3 @@ def _get_color_val(ind,num_series):
         color = custom_map[ind]
     
     return color
-
-def infer_feature_types(df,suppress_report=False):
-    """
-    Returns dictionary of features and corresponding datatypes 
-    (Either 'category' or 'numerical') given a dataframe
-    
-    This can easily misclassify integers, since they can represent 
-    either counts or categories. Additionally, one should try to 
-    avoid using floats as integers.
-    
-    A summary is printed at the end so the user can manually modify
-    the resulting dictionary.        
-    """
-    # Initialize output dictionary
-    data_types = {}
-
-    # Consider each feature
-    for feature in list(df.columns):
-        # Obtain unique feature values
-        unique_feature_values = list(set(df[feature]))
-        
-        # Obtain unique feature types
-        unique_feature_types = list(set(type(unique_item) for unique_item in unique_feature_values))
-
-        # Check for mixed types within feature
-        if len(unique_feature_types) != 1:
-            raise Exception("Mixed types in feature '%s' encountered. This is presently unsupported."%(feature))
-
-        # Check that all input types are expected
-        unique_feature_type = unique_feature_types[0]
-        if not (unique_feature_type is not str or unique_feature_type is not int or unique_feature_type is not np.int64 or unique_feature_type is not float or unique_feature_type is not np.float64):
-            raise Exception("Feature '%s' is not of type str, int, numpy.int64, float, or numpy.float64. Its listed feature is %s This is currently unsupported"%(feature,unique_feature_type))
-        
-        # Ignore features that appear to be ids, though warn user
-        if unique_feature_type is str or unique_feature_type is int or unique_feature_type is np.int64:
-            if len(unique_feature_values) != len(df[feature]):
-                data_types[feature] = 'category'
-            else:
-                if not suppress_report:
-                    print "WARNING: feature '%s' appears to be an id and will not be included in the plot"%(feature)
-        else:
-            data_types[feature] = 'numerical'
-    
-    # Print report
-    if not suppress_report:
-        print ''
-        print 40*'-'
-        print 'Data type\tFeature'
-        print 40*'-'    
-        for key in data_types:
-            print '%s\t%s'%(data_types[key],key)
-        print 40*'-'
-    
-    # Return
-    return data_types
-
-def continuous_pair_grid_vs_label(df,plot_vars=[],hue_feature=[],scatter_alpha=0.2,
-                                  bar_alpha=0.3,num_bars=20,scatter_size=45,
-                                  palette=['grey','orange','red'],fig_size=6,fig_aspect=1,
-                                  filter_feature=[],filter_feature_value=[],plot_medians=False,
-                                  plot_means=False,large_text_size=20,small_text_size=16):
-
-    """
-    Graphs scatter plot of each feature versus the other in a grid (Seaborn PairGrid plot) 
-    with the diagonals being the distribution of the corresponding feature. Sets color of 
-    each data point based on user-designated feature (hue_feature).
-    
-    Requires at least a list of continuous features (plot_vars) and the hue_feature. 
-    """
-    # Change overall font size
-    matplotlib.rcParams['font.size'] = large_text_size
-
-    # Use all features if not explicitly provided by user
-    if not plot_vars:
-        plot_vars = list(df.columns)
-    
-    # Filter data if desired
-    if filter_feature and filter_feature_value:
-        data = df[df[filter_feature]==filter_feature_value]
-    elif not filter_feature and not filter_feature_value:
-        data = df
-    else:
-        raise NameError('There must be BOTH a filter_feature and its corresponding filter_feature_value')
-    
-    # Set hue_feature to None if not provided by user
-    if not hue_feature:
-        hue_feature = None
-    
-    # Graph pair grid
-    g = sns.PairGrid(data,vars=plot_vars,hue=hue_feature,
-                     size=fig_size,aspect=fig_aspect,palette=palette) 
-    
-    # Add histograms to diagonals
-    g.map_diag(plt.hist,alpha=bar_alpha,bins=num_bars)
-    
-    # Plot median lines to histograms in diagonals if specified
-    def plot_median(x,color=[],label=[]): 
-        plt.axvline(x.median(),alpha=1.0,label=label,color=color)
-        
-    # Plot median lines to histograms in diagonals if specified
-    def plot_mean(x,color=[],label=[]): 
-        plt.axvline(x.mean(),alpha=0.5,label=label,color=color,linestyle='--')
-        
-    if plot_medians:        
-        g.map_diag(plot_median)
-    if plot_means:
-        g.map_diag(plot_mean)
-    
-    g.map_offdiag(plt.scatter,alpha=scatter_alpha,s=scatter_size)
-    
-    # Add legend if there is a hue feature
-    if hue_feature:
-        g.add_legend();
