@@ -9,7 +9,7 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import pandas as pd
 
-def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
+def compare_data(df,plot_vars=[],bar_alpha=0.85,data_types=None,
                  num_bars=20,fig_size=16,fig_aspect=1,marker_size=2,
                  marker_alpha=0.5,scatter_plot_filter=None,zoom=[],
                  plot_medians=True):
@@ -71,10 +71,15 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
     if not plot_vars:
         plot_vars = list(df.columns)
 
-    # Check that data_types are specified
+    # Dervive data types for each feature from dataframe
     if not data_types:
-        raise Exception('Dictionary of feature:data types keyword argument, data_types, must be specified.')
-
+        data_types = {}
+        for plot_var in plot_vars:    
+            if df[plot_var].dtype.name == 'category':
+                data_types[plot_var] = 'category' 
+            else:
+                data_types[plot_var] = 'numerical'
+    
     # Check that all features have a corresponding data type
     for feature in plot_vars:
         if feature not in data_types:
@@ -88,12 +93,12 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
         feature_list = list(set(plot_vars+[scatter_plot_filter])) # Make sure the scatter plot filter is included
     else:
         feature_list = list(plot_vars)
-    
+         
     feature_attributes = {}
     for feature in feature_list:
         # Get feature type
         feature_type = data_types[feature]
-        
+
         # Initialize new features
         if feature not in feature_attributes:
             feature_attributes[feature] = {
@@ -108,7 +113,7 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             sorted_value_count_df = df[feature].value_counts().sort_values(ascending=True)
             
             # Get feature values
-            sorted_feature_values = sorted_value_count_df.index.values
+            sorted_feature_values = list(sorted_value_count_df.index.values)
             
             # Save feature value counts for later
             feature_attributes[feature]['feature_value_counts'] = sorted_value_count_df.values
@@ -121,8 +126,8 @@ def compare_data(df,plot_vars=[],data_types=[],bar_alpha=0.85,
             
             # Generate colors for each feature value
             for feature_value_ind,feature_value in enumerate(list(reversed(sorted_feature_values))):
-                feature_attributes[feature]['feature_value_colors'][feature_value] = _get_color_val(feature_value_ind,feature_value_count)    
-    
+                feature_attributes[feature]['feature_value_colors'][feature_value] = _get_color_val(feature_value_ind,feature_value_count)
+          
     # Generate figure settings
     if not zoom:
         figure_parameters['row_count'] = feature_count
@@ -247,7 +252,7 @@ def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
         
         # Move first categorical feature to the front of the list of features
         plot_vars.insert(0,feature_to_move)
-    
+        
     # Count number of features
     number_features = len(plot_vars)
     
@@ -528,7 +533,7 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                 # Find and save data of row feature with current value of column feature,
                 # count the number of each row feature value, and sort by the order
                 # determined by the total count of each row feature value
-                sorted_filtered_data = df[row_feature][df[col_feature]==unique_col_feature_value].value_counts()[sorted_row_values]
+                sorted_filtered_data = df[row_feature][df[col_feature]==unique_col_feature_value].value_counts().loc[sorted_row_values]
                 
                 # Fill N/A values with zero
                 sorted_filtered_data.fillna(0,inplace=True)
