@@ -1,3 +1,4 @@
+<img src="https://github.com/JaggedParadigm/pairplotr/blob/master/pairplot_demo.png" width="500" height="500" />
 # How
 ## Installation
 For now, simply clone the respository and link to the location in your code. 
