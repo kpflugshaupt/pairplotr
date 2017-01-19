@@ -69,7 +69,7 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,data_types=None,
         
     # Use all features if not explicitly provided by user
     if not plot_vars:
-        plot_vars = sorted(list(df.columns))
+        plot_vars = list(df.columns)
 
     # Dervive data types for each feature from dataframe
     if not data_types:
