@@ -10,7 +10,7 @@ import matplotlib.cm as cmx
 import pandas as pd
 
 def compare_data(df,plot_vars=[],bar_alpha=0.85,
-                 num_bars=20,fig_size=16,fig_aspect=1,marker_size=2,
+                 bins=20,fig_size=16,fig_aspect=1,marker_size=2,
                  marker_alpha=0.5,scatter_plot_filter=None,zoom=[],
                  plot_medians=True):
     """
@@ -145,7 +145,7 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,
 
         # Graph pair grid
         plot_pair_grid(df,fig,plot_vars=plot_vars,data_types=data_types,
-                       bar_alpha=bar_alpha,num_bars=num_bars,
+                       bar_alpha=bar_alpha,bins=bins,
                        figure_parameters=figure_parameters,
                        feature_attributes=feature_attributes, 
                        scatter_plot_filter=scatter_plot_filter,plot_kwargs=plot_kwargs,
@@ -207,7 +207,7 @@ def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={
         plot_label_vs_continuous(df,col_feature,row_feature,
                                  output_labels=list(unique_row_values),
                                  colors=colors,alpha=0.6,figure_parameters=figure_parameters,
-                                 title=[],y_label=[],num_bars=bins,
+                                 title=[],y_label=[],bins=bins,
                                  plot_medians=plot_medians,plot_quantiles=False,text_and_line_color=text_and_line_color)
         
     elif row_type == 'numerical' and col_type == 'category':
@@ -228,7 +228,7 @@ def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={
         raise NameError('Logic error involving single plot and feature types')
         
 def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
-                   num_bars=20,dpi=[],figure_parameters=[], #fig_size=12,fig_aspect=1,
+                   bins=20,dpi=[],figure_parameters=[], #fig_size=12,fig_aspect=1,
                    scatter_plot_filter=None,feature_attributes={},plot_kwargs={},axis_kwargs={},
                    text_and_line_color=()):    
     
@@ -339,7 +339,7 @@ def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
             graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                           plot_type=plot_type,scatter_plot_filter=scatter_plot_filter,
                           plot_kwargs=plot_kwargs,diagonal_flag=diagonal_flag,
-                          num_bars=num_bars,bar_edge_color=bar_edge_color,
+                          bins=bins,bar_edge_color=bar_edge_color,
                           left_edge_flag=left_edge_flag,tick_label_size=tick_label_size,
                           text_and_line_color=text_and_line_color)
                         
@@ -356,7 +356,7 @@ def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
                                     
 def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                   plot_type=[],plot_kwargs=[],scatter_plot_filter=[],
-                  diagonal_flag=[],num_bars=20,bar_edge_color=[],
+                  diagonal_flag=[],bins=20,bar_edge_color=[],
                   left_edge_flag=[],tick_label_size=[],text_and_line_color=()):
     """
     Plots subplot given the axis object, dataframe, row- and column- feature names,    
@@ -394,7 +394,7 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
             x = df[row_feature].values
             
             # Generate bins based on minimum and maximum and number of bars
-            bins = np.linspace(df[row_feature].min(),df[row_feature].max(),num_bars)
+            bins = np.linspace(df[row_feature].min(),df[row_feature].max(),bins)
 
             # Pick color
             color = _get_color_val(0,1)
@@ -420,7 +420,7 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
             unique_row_feature_values = feature_attributes[row_feature]['feature_value_order']
             
             # Generate bins based on minimum and maximum and number of bars
-            bins = np.linspace(df[col_feature].min(),df[col_feature].max(),num_bars)
+            bins = np.linspace(df[col_feature].min(),df[col_feature].max(),bins)
             
             # Plot a histogram for the column-feature for each row-feature value
             for unique_feature_value in unique_row_feature_values:
@@ -573,7 +573,7 @@ def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
             
 def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels=[],
                             colors=[],alpha=0.6,figure_parameters={},title=[],y_label=[],
-                            num_bars=20,plot_medians=True,plot_quantiles=False,text_and_line_color=()):
+                            bins=20,plot_medians=True,plot_quantiles=False,text_and_line_color=()):
     """
     Plots the distributions of the input_feature for each output_label_feature value
     """
@@ -596,7 +596,7 @@ def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels
     unique_output_label_feature_values = df[output_label_feature].value_counts().sort_index().index.values
 
     # Set bin bounds for cleaner plots
-    bins = np.linspace(df[input_feature].min(),df[input_feature].max(),num_bars)
+    bins = np.linspace(df[input_feature].min(),df[input_feature].max(),bins)
     
     # Plot data
     cmap = matplotlib.cm.autumn
