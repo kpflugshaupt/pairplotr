@@ -160,7 +160,7 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,
         
 def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={},
                            feature_attributes={},plot_kwargs={},axis_kwargs={},text_and_line_color=(),
-                           plot_medians=True):
+                           plot_medians=True,bins=20):
     """
     Plots a single cell of the pairgrid plot given a Pandas dataframe (df), a list of the row-
     and column-features (features), a dictionary of feature attributes (feature_attributes)
@@ -207,7 +207,7 @@ def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={
         plot_label_vs_continuous(df,col_feature,row_feature,
                                  output_labels=list(unique_row_values),
                                  colors=colors,alpha=0.6,figure_parameters=figure_parameters,
-                                 title=[],y_label=[],num_bars=20,
+                                 title=[],y_label=[],num_bars=bins,
                                  plot_medians=plot_medians,plot_quantiles=False,text_and_line_color=text_and_line_color)
         
     elif row_type == 'numerical' and col_type == 'category':
@@ -356,7 +356,7 @@ def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
                                     
 def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                   plot_type=[],plot_kwargs=[],scatter_plot_filter=[],
-                  diagonal_flag=[],num_bars=[],bar_edge_color=[],
+                  diagonal_flag=[],num_bars=20,bar_edge_color=[],
                   left_edge_flag=[],tick_label_size=[],text_and_line_color=()):
     """
     Plots subplot given the axis object, dataframe, row- and column- feature names,    
