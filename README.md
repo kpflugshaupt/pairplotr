@@ -1,10 +1,11 @@
 <img src="https://github.com/JaggedParadigm/pairplotr/blob/master/pairplot_demo.png" width="500" height="500" />
+
 # How
 ## Installation
 For now, simply clone the respository and link to the location in your code. 
 
 ## Use
-See the [demo](pairplotr_demo.ipynb) for use of pairplotr.
+See the [demo](https://nbviewer.jupyter.org/github/JaggedParadigm/pairplotr/blob/master/pairplotr_demo.ipynb) for use of pairplotr.
 
 # What
 Pairplotr is a Python library used to graph combinations of numerical and categorical data in a pair plot,
