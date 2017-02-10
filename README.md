@@ -1,4 +1,4 @@
-<img src="https://github.com/JaggedParadigm/pairplotr/blob/master/pairplot_demo.png" width="500" height="500" />
+![](https://github.com/JaggedParadigm/pairplotr/blob/master/pairplot_demo.png | width=500)
 
 # How
 ## Installation
