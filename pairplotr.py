@@ -156,7 +156,7 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,
                                figure_parameters=figure_parameters,
                                feature_attributes=feature_attributes,plot_kwargs=plot_kwargs,
                                axis_kwargs=axis_kwargs,text_and_line_color=text_and_line_color,
-                               plot_medians=plot_medians)
+                               plot_medians=plot_medians,bins=bins)
         
 def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={},
                            feature_attributes={},plot_kwargs={},axis_kwargs={},text_and_line_color=(),
@@ -223,7 +223,7 @@ def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={
                             feature_attributes=feature_attributes,plot_kwargs=plot_kwargs,bar_edge_color='w',
                             text_and_line_color=text_and_line_color)
     elif row_type == 'numerical' and col_type == 'numerical':
-        raise NameError('For the moment')
+        raise NameError("For the moment, numerical vs numerical can't be plotted")
     else:
         raise NameError('Logic error involving single plot and feature types')
         
@@ -594,7 +594,7 @@ def plot_label_vs_continuous(df,input_feature,output_label_feature,output_labels
         
     # Obtain unique output label feature values
     unique_output_label_feature_values = df[output_label_feature].value_counts().sort_index().index.values
-
+    
     # Set bin bounds for cleaner plots
     bins = np.linspace(df[input_feature].min(),df[input_feature].max(),bins)
     
