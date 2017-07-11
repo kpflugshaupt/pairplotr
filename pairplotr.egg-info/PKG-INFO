@@ -1,0 +1,45 @@
+Metadata-Version: 1.1
+Name: pairplotr
+Version: 1.2.3
+Summary: Pairplotr is a Python library used to graph combinations of numerical and categorical data in a pair plot
+Home-page: http://packages.python.org/pairplotr
+Author: Christopher Shymansky
+Author-email: CMShymansky@gmail.com
+License: OSI Approved :: Apache Software License
+Description: <img src="https://github.com/JaggedParadigm/pairplotr/blob/master/pairplot_demo.png" width="500" />
+        
+        # How
+        ## Installation
+        For now, simply clone the respository and link to the location in your code. 
+        
+        ## Use
+        See the [demo](https://nbviewer.jupyter.org/github/JaggedParadigm/pairplotr/blob/master/pairplotr_demo.ipynb) for use of pairplotr.
+        
+        # What
+        Pairplotr is a Python library used to graph combinations of numerical and categorical data in a pair plot,
+        similar to Seaborn's pairplot(), given a cleaned Pandas dataframe with a mixture of categorical and numerical
+        values.
+        
+        Here are the formats for Row feature|Column feature combinations in either on- or off-diagonal cells: 
+        
+        - On-diagonal:        
+          - Categorical|Categorical:
+            - Value counts of feature values ordered by ascending value count and colored by feature values
+          - Numerical|Numerical:
+            - Histogram of feature w/ no coloring (or by desired label)
+        - Off-diagonal:
+          - Categorical|Categorical:
+            - Stacked value count of row feature values colored by column feature values
+          - Categorical|Numerical:
+            - Histograms of column feature for each row feature value colored by row feature value
+          - Numerical|Numerical:
+            - Scatter plot of row feature values vs column feature values w/ no coloring (or by desired label)
+        
+        # Why
+        The available tools I've found don't seem to be able to combine numerical and categorical feature data
+        in a quick and easy way and I wanted to customize the comparisons as the plot types I find most useful.
+Keywords: scikit-learn pandas data visualization pairplot
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: Topic :: Utilities
+Classifier: License :: OSI Approved :: Apache Software License
