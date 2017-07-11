@@ -1,0 +1,8 @@
+setup.py
+pairplotr/__init__.py
+pairplotr/pairplotr.py
+pairplotr.egg-info/PKG-INFO
+pairplotr.egg-info/SOURCES.txt
+pairplotr.egg-info/dependency_links.txt
+pairplotr.egg-info/requires.txt
+pairplotr.egg-info/top_level.txt
