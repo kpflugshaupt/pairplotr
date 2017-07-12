@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name = "pairplotr",
-    version = "1.2.3",
+    version = "1.2.3.1",
     author = "Christopher Shymansky",
     author_email = "CMShymansky@gmail.com",
     description = ("Pairplotr is a Python library used to graph combinations " \
@@ -18,7 +18,6 @@ setup(
     long_description=read('README.md'),
     install_requires=[
             'seaborn',
-            'inspect',
             'numpy',
             'matplotlib',
             'pandas'
