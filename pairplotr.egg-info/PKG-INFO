@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: pairplotr
-Version: 1.2.3
+Version: 1.2.3.1
 Summary: Pairplotr is a Python library used to graph combinations of numerical and categorical data in a pair plot
 Home-page: http://packages.python.org/pairplotr
 Author: Christopher Shymansky
