@@ -1,5 +1,4 @@
 seaborn
-inspect
 numpy
 matplotlib
 pandas
