@@ -7,25 +7,29 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 import pandas as pd
 
-def compare_data(df,plot_vars=[],bar_alpha=0.85,
-                 bins=20,fig_size=16,fig_aspect=1,marker_size=2,
-                 marker_alpha=0.5,scatter_plot_filter=None,zoom=[],
-                 plot_medians=True):
+def compare_data(df, plot_vars=[], bar_alpha=0.85, bins=20, fig_size=16,
+                 fig_aspect=1, marker_size=2, marker_alpha=0.5,
+                 scatter_plot_filter=None, zoom=[], plot_medians=True):
     """
-    Outputs a pairplot given a Pandas dataframe with these formats for Row feature|Column feature
-    combinations in either on- or off-diagonal cells:
+    Outputs a pairplot given a Pandas dataframe with these formats for
+    Row feature|Column feature combinations in either on- or off-diagonal
+    cells:
 
     On-diagonal:
-        Categorical|Categorical:    Value counts of feature values ordered by ascending value count and
-                                    colored by feature values
-        Numerical|Numerical:        Histogram of feature w/ no coloring (or by desired label)
+        Categorical|Categorical:    Value counts of feature values ordered by
+                                    ascending value count and colored by
+                                    feature values
+        Numerical|Numerical:        Histogram of feature w/ no coloring (or by
+                                    desired label)
     Off-diagonal:
-        Categorical|Categorical:    Stacked value count of row feature values colored by column feature
-                                    values
-        Categorical|Numerical:      Histograms of column feature for each row feature value colored by
-                                    row feature value
-        Numerical|Numerical:        Scatter plot of row feature values vs column feature values w/ no
-                                    coloring (or by desired label)
+        Categorical|Categorical:    Stacked value count of row feature values
+                                    colored by column feature values
+        Categorical|Numerical:      Histograms of column feature for each row
+                                    feature value colored by row feature value
+        Numerical|Numerical:        Scatter plot of row feature values vs
+                                    column feature values w/ no coloring (or by
+                                    desired label)
+
     """
     # Initialize figure settings
     figure_parameters = {
@@ -54,12 +58,13 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,
 
     # Set text and line color
     grayLevel = 0.6
-    text_and_line_color = (0.0,0.0,0.0,grayLevel)
+    text_and_line_color = (0.0, 0.0, 0.0, grayLevel)
 
     # Create axis keyword arguments
     axis_kwargs = {}
 
-    # Set no x-tick, x-tick label, or y-tick generation as default for grid pair plots
+    # Set no x-tick, x-tick label, or y-tick generation as default for grid
+    # pair plots
     if not zoom:
         axis_kwargs['xticks'] = []
         axis_kwargs['yticks'] = []
@@ -80,9 +85,11 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,
     # Get number of features
     feature_count = len(plot_vars)
 
-    # Derive orders and colors of each categorical feature value based on ascending value count
+    # Derive orders and colors of each categorical feature value based on
+    # ascending value count
     if scatter_plot_filter:
-        feature_list = list(set(plot_vars+[scatter_plot_filter])) # Make sure the scatter plot filter is included
+        # Make sure the scatter plot filter is included
+        feature_list = list(set(plot_vars+[scatter_plot_filter]))
     else:
         feature_list = list(plot_vars)
 
@@ -102,16 +109,20 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,
         # Get feature value order, value counts, and color for each value
         if feature_type == 'category':
             # Get feature value counts and sort in ascending order by count
-            sorted_value_count_df = df[feature].value_counts().sort_values(ascending=True)
+            sorted_value_count_df = df[feature].value_counts().sort_values(
+                                                                ascending=True)
 
             # Get feature values
             sorted_feature_values = list(sorted_value_count_df.index.values)
 
             # Save feature value counts for later
-            feature_attributes[feature]['feature_value_counts'] = sorted_value_count_df.values
+            feature_attributes[feature]['feature_value_counts'] = \
+                sorted_value_count_df.values
 
-            # Save feature value order
-            feature_attributes[feature]['feature_value_order'] = sorted_feature_values # Ascending results in the colors I want yet not the right order, so I reverse them here
+            # Save feature value order (Ascending results in the colors I
+            # want yet not the right order, so I reverse them here)
+            feature_attributes[feature]['feature_value_order'] = \
+                sorted_feature_values
 
             # Get number of feature values
             feature_value_count = len(sorted_feature_values)
@@ -142,30 +153,37 @@ def compare_data(df,plot_vars=[],bar_alpha=0.85,
         axis_kwargs['frame_on'] = False
 
         # Graph pair grid
-        plot_pair_grid(df,fig,plot_vars=plot_vars,data_types=data_types,
-                       bar_alpha=bar_alpha,bins=bins,
+        plot_pair_grid(df, fig, plot_vars=plot_vars, data_types=data_types,
+                       bar_alpha=bar_alpha, bins=bins,
                        figure_parameters=figure_parameters,
                        feature_attributes=feature_attributes,
-                       scatter_plot_filter=scatter_plot_filter,plot_kwargs=plot_kwargs,
-                       axis_kwargs=axis_kwargs,text_and_line_color=text_and_line_color)
+                       scatter_plot_filter=scatter_plot_filter,
+                       plot_kwargs=plot_kwargs,
+                       axis_kwargs=axis_kwargs,
+                       text_and_line_color=text_and_line_color)
     else:
         # Plot single graph
-        _plot_single_comparison(df,fig,features=zoom,data_types=data_types,
+        _plot_single_comparison(df,fig,features=zoom, data_types=data_types,
                                figure_parameters=figure_parameters,
-                               feature_attributes=feature_attributes,plot_kwargs=plot_kwargs,
-                               axis_kwargs=axis_kwargs,text_and_line_color=text_and_line_color,
-                               plot_medians=plot_medians,bins=bins)
+                               feature_attributes=feature_attributes,
+                               plot_kwargs=plot_kwargs,
+                               axis_kwargs=axis_kwargs,
+                               text_and_line_color=text_and_line_color,
+                               plot_medians=plot_medians, bins=bins)
 
-def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={},
-                           feature_attributes={},plot_kwargs={},axis_kwargs={},text_and_line_color=(),
-                           plot_medians=True,bins=20):
+def _plot_single_comparison(df, fig, features=[], data_types={},
+                            figure_parameters={}, feature_attributes={},
+                            plot_kwargs={}, axis_kwargs={},
+                            text_and_line_color=(), plot_medians=True,bins=20):
     """
-    Plots a single cell of the pairgrid plot given a Pandas dataframe (df), a list of the row-
-    and column-features (features), a dictionary of feature attributes (feature_attributes)
-    containing the desired ordering/colors of each value for a given feature, a dictionary
-    of the data types (e.g. 'category' or 'numerical') for at least the provided features
-    (data_types), and a dictionary of figure parameters that includes the number of rows/columns
-    and the figure dimensions. This method is meant to be used by the compare_data() method.
+    Plots a single cell of the pairgrid plot given a Pandas dataframe (df),
+    a list of the row-and column-features (features), a dictionary of feature
+    attributes (feature_attributes) containing the desired ordering/colors of
+    each value for a given feature, a dictionary of the data types (e.g.
+    'category' or 'numerical') for at least the provided features (data_types),
+    and a dictionary of figure parameters that includes the number of
+    rows/columns and the figure dimensions. This method is meant to be used
+    by the compare_data() method.
     """
     # Check input types and lengths
     if not features or len(features) != 2 or type(features) is not list:
@@ -194,53 +212,69 @@ def _plot_single_comparison(df,fig,features=[],data_types={},figure_parameters={
                         argument'%(col_feature))
 
     # Get axis
-    ax = fig.add_subplot(1,1,1,**axis_kwargs)
+    ax = fig.add_subplot(1, 1, 1, **axis_kwargs)
 
     # Choose plot type and plot
     if row_type == 'category' and col_type == 'numerical':
-        unique_row_values = feature_attributes[row_feature]['feature_value_order']
+        unique_row_values = \
+            feature_attributes[row_feature]['feature_value_order']
 
         colors = feature_attributes[row_feature]['feature_value_colors']
 
-        plot_label_vs_continuous(df,col_feature,row_feature,
+        plot_label_vs_continuous(df, col_feature, row_feature,
                                  output_labels=list(unique_row_values),
-                                 colors=colors,alpha=0.6,figure_parameters=figure_parameters,
-                                 title=[],y_label=[],bins=bins,
-                                 plot_medians=plot_medians,plot_quantiles=False,text_and_line_color=text_and_line_color)
+                                 colors=colors, alpha=0.6,
+                                 figure_parameters=figure_parameters,
+                                 title=[], y_label=[], bins=bins,
+                                 plot_medians=plot_medians,
+                                 plot_quantiles=False,
+                                 text_and_line_color=text_and_line_color)
 
     elif row_type == 'numerical' and col_type == 'category':
-        raise Exception('The first feature of the zoom keyword argument is numerical and the 2nd is \
-                        There are no current plans to support this type of plot.')
+        raise Exception("The first feature of the zoom keyword argument is " \
+                        "numerical and the 2nd is categorical. There are no " \
+                        "current plans to support this type of plot.")
     elif row_type == 'category' and col_type == 'category':
-        unique_col_values = feature_attributes[col_feature]['feature_value_order']
+        unique_col_values = \
+            feature_attributes[col_feature]['feature_value_order']
 
-        colors = [feature_attributes[col_feature]['feature_value_colors'][col_value] for col_value in unique_col_values]
+        colors = \
+            [feature_attributes[col_feature]['feature_value_colors'][col_value] \
+                for col_value in unique_col_values]
 
-        plot_label_versus_label(df,ax,features[0],features[1],output_labels=list(unique_col_values),
-                            colors=colors,alpha=0.6,figure_parameters=figure_parameters,x_label=[],title=[],
-                            feature_attributes=feature_attributes,plot_kwargs=plot_kwargs,bar_edge_color='w',
-                            text_and_line_color=text_and_line_color)
+        plot_label_versus_label(df, ax, features[0], features[1],
+                                output_labels=list(unique_col_values),
+                                colors=colors, alpha=0.6,
+                                figure_parameters=figure_parameters,
+                                x_label=[], title=[],
+                                feature_attributes=feature_attributes,
+                                plot_kwargs=plot_kwargs, bar_edge_color='w',
+                                text_and_line_color=text_and_line_color)
     elif row_type == 'numerical' and col_type == 'numerical':
-        raise NameError("For the moment, numerical vs numerical can't be plotted")
+        raise NameError("For the moment, numerical vs numerical can't be " \
+                        "plotted")
     else:
         raise NameError('Logic error involving single plot and feature types')
 
-def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
-                   bins=20,dpi=[],figure_parameters=[], #fig_size=12,fig_aspect=1,
-                   scatter_plot_filter=None,feature_attributes={},plot_kwargs={},axis_kwargs={},
-                   text_and_line_color=()):
+def plot_pair_grid(df, fig, plot_vars=[], data_types=[], bar_alpha=0.85,
+                   bins=20, dpi=[], figure_parameters=[], #fig_size=12,fig_aspect=1,
+                   scatter_plot_filter=None, feature_attributes={},
+                   plot_kwargs={}, axis_kwargs={}, text_and_line_color=()):
 
-    # Move first categorical feature to front column in front of a first numerical feature
+    # Move first categorical feature to front column in front of a first
+    # numerical feature
     feature_types = [data_types[feature] for feature in plot_vars]
     if 'category' in feature_types and feature_types[0]=='numerical':
         # Pop out first categorical variable
         feature_to_move = plot_vars.pop(feature_types.index('category'))
 
         # Issue warning to user
-        print "WARNING: Due to a y-tick label bug I can't seem to overcome, the first continuous " \
-              "feature encountered in either the dataframe column list or the user-specified list "\
-              "of features keyword argument, plot_vars, %s has been moved to the front of the list "\
-              "because the first feature, %s, is numerical.\n" %(feature_to_move,plot_vars[0])
+        print "WARNING: Due to a y-tick label bug I can't seem to overcome, " \
+              "the first continuous feature encountered in either the " \
+              "dataframe column list or the user-specified list of features " \
+              "keyword argument, plot_vars, %s has been moved to the front " \
+              "of the list because the first " \
+              "feature, %s, is numerical.\n" %(feature_to_move,plot_vars[0])
 
         # Move first categorical feature to the front of the list of features
         plot_vars.insert(0,feature_to_move)
@@ -251,13 +285,15 @@ def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
     # Raise error if the desired feature to color the scatter plots isn't found and/or is not categorical
     if scatter_plot_filter:
         if scatter_plot_filter not in df.columns:
-            raise Exception("The scatter_plot_filter keyword argument, %s, is not one of the " \
-                            "features."%(scatter_plot_filter))
+            raise Exception("The scatter_plot_filter keyword argument, %s, " \
+                            "is not one of the features."%(scatter_plot_filter))
 
         if data_types[scatter_plot_filter] != 'category':
-            raise Exception("The scatter_plot_filter keyword argument, %s, is not defined as a \
-                            category in the data_types keyword argument. Only categorical \
-                            features can be used to color scatter plots."%(scatter_plot_filter))
+            raise Exception("The scatter_plot_filter keyword argument, %s, " \
+                            "is not defined as a category in the data_types " \
+                            "keyword argument. Only categorical features " \
+                            "can be used " \
+                            "to color scatter plots."%(scatter_plot_filter))
 
     # Set default text font, color, and size
     text_family = 'sans-serif'
@@ -296,7 +332,8 @@ def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
             col_feature = plot_vars[axis_column_ind]
             col_type = data_types[col_feature]
 
-            # Determine if this is a diagonal, left-edge, and/or bottom-edge grid cell
+            # Determine if this is a diagonal, left-edge, and/or
+            # bottom-edge grid cell
             diagonal_flag = False
             left_edge_flag = False
             bottom_edge_flag = False
@@ -334,30 +371,36 @@ def plot_pair_grid(df,fig,plot_vars=[],data_types=[],bar_alpha=0.85,
                                      axis_ind,**axis_kwargs)
 
             # Generate plot in axis
-            graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
-                          plot_type=plot_type,scatter_plot_filter=scatter_plot_filter,
-                          plot_kwargs=plot_kwargs,diagonal_flag=diagonal_flag,
-                          bins=bins,bar_edge_color=bar_edge_color,
-                          left_edge_flag=left_edge_flag,tick_label_size=tick_label_size,
+            graph_subplot(ax, df, col_feature, row_feature, feature_attributes,
+                          plot_type=plot_type,
+                          scatter_plot_filter=scatter_plot_filter,
+                          plot_kwargs=plot_kwargs, diagonal_flag=diagonal_flag,
+                          bins=bins, bar_edge_color=bar_edge_color,
+                          left_edge_flag=left_edge_flag,
+                          tick_label_size=tick_label_size,
                           text_and_line_color=text_and_line_color)
 
             # Set y- and x-axis labels
             if left_edge_flag:
-                ax.set_ylabel(row_feature,color=text_and_line_color,size=text_font_size)
-                ax.get_yaxis().set_label_coords(-label_padding,0.5)
+                ax.set_ylabel(row_feature, color=text_and_line_color,
+                              size=text_font_size)
+                ax.get_yaxis().set_label_coords(-label_padding, 0.5)
             if bottom_edge_flag:
-                ax.set_xlabel(col_feature,color=text_and_line_color,size=text_font_size)
+                ax.set_xlabel(col_feature, color=text_and_line_color,
+                              size=text_font_size)
 
             # Set y-axis tick labels if on left
             if left_edge_flag:
-                ax.set_yticklabels(ax.get_yticklabels(),text_properties['tick_labels'])
+                ax.set_yticklabels(ax.get_yticklabels(),
+                                   text_properties['tick_labels'])
 
 def graph_subplot(ax,df,col_feature,row_feature,feature_attributes,
                   plot_type=[],plot_kwargs=[],scatter_plot_filter=[],
                   diagonal_flag=[],bins=20,bar_edge_color=[],
                   left_edge_flag=[],tick_label_size=[],text_and_line_color=()):
     """
-    Plots subplot given the axis object, dataframe, row- and column- feature names,
+    Plots subplot given the axis object, dataframe, row- and column- feature
+    names,
     """
     if plot_type == 'scatter':
         # Get data
