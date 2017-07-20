@@ -109,6 +109,8 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
     # there is only one plot. This makes indexing more consistent.)
     fig, sub_axes = plt.subplots(**default_fig_kwargs)
 
+    df_counts = df.count()
+
     # Fill cells
     for row_ind in xrange(row_count):
         feature = plot_vars[row_ind]
@@ -118,6 +120,10 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
         feature_series = df[feature]
 
         feature_values = feature_series.values
+
+        non_null_count = df_counts[feature]
+
+        title = '%s:    (%d/%d)' % (feature, non_null_count, len(df))
 
         for col_ind in xrange(col_count):
 
@@ -159,11 +165,12 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                         color = color[:top]
 
                     plot_bar(ax, sorted_feature_values, feature_value_counts,
-                             color=color, title=feature)
+                             color=color, title=title)
 
                 ax.tick_params(axis=u'both', which=u'both',length=0) #pad=30
 
-                ax.set_title(feature, color=text_and_line_color,
+
+                ax.set_title(title, color=text_and_line_color,
                              size=text_font_size)
 
                 # Set y-tick label sizes and colors
