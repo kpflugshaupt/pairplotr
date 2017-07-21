@@ -250,11 +250,10 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
 
                     # Obtain column feature
                     unique_col_feature_values = sorted_target_values
-                    # unique_col_feature_values = feature_attributes[hue_feature]['feature_value_order']
 
                     # Initalize value for bottom bar for stacked bar charts
                     sorted_row_values = sorted_feature_values
-                    # sorted_row_values = feature_attributes[data_feature]['feature_value_order']
+
                     bottom_bar_buffer = np.zeros(len(sorted_row_values))
 
                     # Set tick-labels
@@ -294,30 +293,12 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                             edgecolor=color
                         )
 
-                        # plot_kwargs[plot_type]['left'] = bottom_bar_buffer
-                        #
-                        # # Set bar colors
-                        # plot_kwargs[plot_type]['color'] = color
-
                         ## Set bar edge color (default is color of current bar unless provided by user)
-                        # if not bar_edge_color:
-                        #     plot_kwargs[plot_type]['edgecolor'] = color
                         bar_positions = np.arange(len(data))
+
                         # Plot bars corresponding to current series
-                        ax.barh(bar_positions,data,**bar_kwargs)
-                        # ax.barh(bar_positions,data,**plot_kwargs[plot_type])
+                        ax.barh(bar_positions, data, **bar_kwargs)
 
-
-
-
-                    # label_by_label = label_by_label.loc[feature_attributes[data_feature]['feature_value_order']]
-                    # print feature, target_feature
-                    # print label_by_label
-
-
-                    # # Graph feature stacked hbar chart colored by target
-                    # plot_bar(ax, tick_labels, bar_values, color=None, title='',
-                    #              text_and_line_color=text_and_line_color)
                 elif target_numerical and not feature_numerical:
                     # Graph numerical target histogram colored by feature
                     pass
@@ -368,7 +349,7 @@ def plot_bar(ax, tick_labels, bar_values, color=None, title='',
         zorder=1000,
     )
 
-    bars = ax.barh(bar_positions,bar_values,**bar_kwargs)
+    bars = ax.barh(bar_positions, bar_values, **bar_kwargs)
 
     # Set left frame attributes
     ax.spines['left'].set_linewidth(1.0)
