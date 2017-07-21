@@ -21,7 +21,11 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
 
     # Initialize plotted features to all if not provided
     if plot_vars is None:
-        plot_vars = feature_types.keys()
+        if target_feature:
+            plot_vars = [key for key in feature_types.keys()
+                         if key != target_feature]
+        else:
+            plot_vars = feature_types.keys()
 
     # Calulate plot dimensions
     if target_feature is not None:
@@ -211,11 +215,7 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                 # Replace NaN index w/ string
                 sorted_value_count_df.index = \
                     pd.Series(sorted_value_count_df.index).replace(np.nan,
-                                                                   'NaNz')
-                # sorted_value_count_df.replace(np.nan, 'NaNz')
-
-                print sorted_value_count_df
-
+                                                                   'nan')
 
                 if top == 'all':
                     sorted_feature_values = \
@@ -243,8 +243,6 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                         aggfunc=len)
 
                     # Order by specific data feature value
-                    print label_by_label
-                    print sorted_feature_values
                     label_by_label = label_by_label.loc[sorted_feature_values]
 
                     # Fill in N/A values with zero
