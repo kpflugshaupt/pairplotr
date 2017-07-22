@@ -12,7 +12,8 @@ import matplotlib.cm as cmx
 import pandas as pd
 
 def plot_bar(ax, tick_labels, bar_values, color=None, title='',
-             text_and_line_color='black', text_font_size=12):
+             text_and_line_color='black', text_font_size=12,
+             small_text_size=9):
     """
     """
     # Derive bar positions
@@ -27,7 +28,78 @@ def plot_bar(ax, tick_labels, bar_values, color=None, title='',
         zorder=1000,
     )
 
-    bars = ax.barh(bar_positions, bar_values, **bar_kwargs)
+    bar_positions = np.arange(bar_values.shape[0])
+
+    # Initialize bottom bar buffer
+    bottom_bar_buffer = np.zeros(bar_values.shape[0])
+
+    if len(bar_values.shape) == 1:
+        bar_values = bar_values.reshape(-1, 1)
+
+        color = [color]
+
+    # Plot stacked bars for row feature data corresponding to each column feature value
+    for data_ind in xrange(bar_values.shape[1]):
+        data = bar_values[:,data_ind]
+
+        # Add previous values to current buffer
+        if data_ind:
+            bottom_bar_buffer = bottom_bar_buffer + bar_values[:, data_ind-1]
+
+        current_colors = color[data_ind]
+
+        # Set series-specific parameters
+        # Set lower value to start bars from
+        bar_kwargs = dict(
+            height=0.8,
+            left=bottom_bar_buffer,
+            color=current_colors,
+            tick_label=tick_labels,
+            zorder=1000,
+            edgecolor=current_colors
+        )
+
+        ax.barh(bar_positions, data, **bar_kwargs)
+
+
+    #
+    #
+    # for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):
+    #     # Get color for bars
+    #     color = _get_color_val(
+    #                 unique_col_feature_value_ind,
+    #                 unique_col_feature_value_count)
+    #
+    #     # color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
+    #
+    #     # Get data for current col_feature value and column_feature
+    #     data = label_by_label[unique_col_feature_value]
+    #
+    #     # Add previous values to current buffer
+    #     if unique_col_feature_value_ind:
+    #         previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
+    #
+    #         bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
+    #
+    #     # Set series-specific parameters
+    #     # Set lower value to start bars from
+    #     bar_kwargs = dict(
+    #         height=0.8,
+    #         left=bottom_bar_buffer,
+    #         color=color,
+    #         tick_label=tick_labels,
+    #         zorder=1000,
+    #         edgecolor=color
+    #     )
+    #
+    #     ## Set bar edge color (default is color of current bar unless provided by user)
+    #     bar_positions = np.arange(len(data))
+    #
+    #     # Plot bars corresponding to current series
+    #     # ax.barh(bar_positions, data, **bar_kwargs)
+
+
+    # bars = ax.barh(bar_positions, bar_values, **bar_kwargs)
 
     # Set left frame attributes
     ax.spines['left'].set_linewidth(1.0)
@@ -46,16 +118,24 @@ def plot_bar(ax, tick_labels, bar_values, color=None, title='',
     ax.set_title(title, color=text_and_line_color,
                  size=text_font_size)
 
+    # Set y-tick label sizes and colors
+    for x_tick in ax.xaxis.get_major_ticks():
+        x_tick.label.set_fontsize(small_text_size)
+        x_tick.label.set_color(text_and_line_color)
+
+    # Set y-tick label sizes and colors
+    for y_tick in ax.yaxis.get_major_ticks():
+        y_tick.label.set_fontsize(small_text_size)
+        y_tick.label.set_color(text_and_line_color)
+
 def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
-                           feature_type, top='all'):
+                           feature_type, top='all', tick_labels=None,
+                           text_and_line_color='black',
+                           text_font_size=12, small_text_size=9):
     """
     """
-    # TODO: Test to make sure the top kwarg works for these types of plots
-
-
     # Get feature name from series
     feature_series = df[feature]
-
 
     feature_type = feature_types[feature]
 
@@ -77,28 +157,6 @@ def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
 
     sorted_target_values = \
         sorted_target_count_df.index.values[::-1]
-
-
-
-    # # Get target feature type, determine if it's numerical, and get its
-    # # sorted feature values
-    # if target_feature is not None:
-    #     target_feature_type = feature_types[target_feature]
-    #
-    #     # Get sorted target value feature values
-    #     target_series = df[target_feature]
-    #
-    #     # sorted_target_count_df = \
-    #     #     target_series.value_counts(
-    #     #         dropna=False).sort_values(ascending=False)
-    #
-    #     # sorted_target_values = \
-    #     #     sorted_target_count_df.index.values[::-1]
-    #
-    #     # Set flag indicating whether the target variable is numerical
-    #     target_numerical = \
-    #         ('categorical' not in target_feature_type
-    #          and target_feature_type != 'id')
 
     # Sort feature values
     sorted_value_count_df = \
@@ -125,6 +183,7 @@ def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
     # Plot target feature
 
     if not target_numerical and not feature_numerical:
+
         # Pick data and hue features
         data_feature = feature
         hue_feature = target_feature
@@ -150,47 +209,73 @@ def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
         bottom_bar_buffer = np.zeros(len(sorted_row_values))
 
         # Set tick-labels
-        tick_labels = sorted_row_values
+        if tick_labels is None:
+            tick_labels = sorted_row_values
 
         # Set bar and tick-label positions
         bar_positions = np.arange(len(sorted_row_values))
 
         unique_col_feature_value_count = len(unique_col_feature_values)
 
-        # Plot stacked bars for row feature data corresponding to each column feature value
-        for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):
-            # Get color for bars
+        # # Plot stacked bars for row feature data corresponding to each column feature value
+        # for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):
+        #     # Get color for bars
+        #     color = _get_color_val(
+        #                 unique_col_feature_value_ind,
+        #                 unique_col_feature_value_count)
+        #
+        #     # color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
+        #
+        #     # Get data for current col_feature value and column_feature
+        #     data = label_by_label[unique_col_feature_value]
+        #
+        #     # Add previous values to current buffer
+        #     if unique_col_feature_value_ind:
+        #         previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
+        #
+        #         bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
+        #
+        #     # Set series-specific parameters
+        #     # Set lower value to start bars from
+        #     bar_kwargs = dict(
+        #         height=0.8,
+        #         left=bottom_bar_buffer,
+        #         color=color,
+        #         tick_label=tick_labels,
+        #         zorder=1000,
+        #         edgecolor=color
+        #     )
+        #
+        #     ## Set bar edge color (default is color of current bar unless provided by user)
+        #     bar_positions = np.arange(len(data))
+        #
+        #     # Plot bars corresponding to current series
+        #     # ax.barh(bar_positions, data, **bar_kwargs)
+
+        bar_values = []
+        colors = []
+
+        bar_values = label_by_label.values
+
+        for unique_col_feature_value_ind, unique_col_feature_value \
+            in enumerate(unique_col_feature_values):
+
+            # bar_data = label_by_label[unique_col_feature_value].values
+            # bar_values.append(bar_data)
+
             color = _get_color_val(
                         unique_col_feature_value_ind,
                         unique_col_feature_value_count)
 
-            # color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
 
-            # Get data for current col_feature value and column_feature
-            data = label_by_label[unique_col_feature_value]
+            colors.append([color for x in xrange(bar_values.shape[0])])
 
-            # Add previous values to current buffer
-            if unique_col_feature_value_ind:
-                previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
 
-                bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
+        plot_bar(ax, tick_labels, bar_values, color=colors, title='',
+                     text_font_size=text_font_size,
+                     text_and_line_color=text_and_line_color,
+                     small_text_size=small_text_size)
 
-            # Set series-specific parameters
-            # Set lower value to start bars from
-            bar_kwargs = dict(
-                height=0.8,
-                left=bottom_bar_buffer,
-                color=color,
-                tick_label='',
-                zorder=1000,
-                edgecolor=color
-            )
-
-            ## Set bar edge color (default is color of current bar unless provided by user)
-            bar_positions = np.arange(len(data))
-
-            # Plot bars corresponding to current series
-            ax.barh(bar_positions, data, **bar_kwargs)
 
     elif target_numerical and not feature_numerical:
         # Graph numerical target histogram colored by feature
@@ -219,7 +304,7 @@ def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
         Numerical feature histogram colored by target category
     target = numerical & feature = numerical
         Scatter plot of target versus feature
-    """                 
+    """
 
 def draw_feature_distribution(ax, df, feature, feature_types,
                               text_and_line_color, top='all',
@@ -267,20 +352,18 @@ def draw_feature_distribution(ax, df, feature, feature_types,
             color = color[:top]
 
         plot_bar(ax, sorted_feature_values, feature_value_counts,
-                 color=color, title=title, text_font_size=text_font_size)
+                 color=color, title=title, text_font_size=text_font_size,
+                 small_text_size=small_text_size)
 
-
-    # Set y-tick label sizes and colors
-    for x_tick in ax.xaxis.get_major_ticks():
-        x_tick.label.set_fontsize(small_text_size)
-        x_tick.label.set_color(text_and_line_color)
-
-    # Set y-tick label sizes and colors
-    for y_tick in ax.yaxis.get_major_ticks():
-        y_tick.label.set_fontsize(small_text_size)
-        y_tick.label.set_color(text_and_line_color)
-
-
+    # # Set y-tick label sizes and colors
+    # for x_tick in ax.xaxis.get_major_ticks():
+    #     x_tick.label.set_fontsize(small_text_size)
+    #     x_tick.label.set_color(text_and_line_color)
+    #
+    # # Set y-tick label sizes and colors
+    # for y_tick in ax.yaxis.get_major_ticks():
+    #     y_tick.label.set_fontsize(small_text_size)
+    #     y_tick.label.set_color(text_and_line_color)
 
 def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                  fig_kwargs=None, top='all'):
@@ -415,9 +498,13 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                                           small_text_size=small_text_size)
             else:
                 draw_target_vs_feature(ax, df, feature, target_feature,
-                                       feature_types, feature_type, top=top)
+                                       feature_types, feature_type, top=top,
+                                       tick_labels='',
+                                       text_and_line_color=text_and_line_color,
+                                       text_font_size=text_font_size,
+                                       small_text_size=small_text_size)
 
-            ax.tick_params(axis=u'both', which=u'both',length=0) #pad=30
+            ax.tick_params(axis=u'both', which=u'both',length=0)
 
     plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                         wspace=None, hspace=0.35)
