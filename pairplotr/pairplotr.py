@@ -11,6 +11,277 @@ import matplotlib.cm as cmx
 
 import pandas as pd
 
+def plot_bar(ax, tick_labels, bar_values, color=None, title='',
+             text_and_line_color='black', text_font_size=12):
+    """
+    """
+    # Derive bar positions
+    bar_positions = np.arange(len(bar_values))
+
+    # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
+    bar_kwargs = dict(
+        height=0.8,
+        left=None,
+        color=color,
+        tick_label=tick_labels,
+        zorder=1000,
+    )
+
+    bars = ax.barh(bar_positions, bar_values, **bar_kwargs)
+
+    # Set left frame attributes
+    ax.spines['left'].set_linewidth(1.0)
+    ax.spines['left'].set_color(text_and_line_color)
+
+    # Remove all but bottom frame line
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+    # Remove ticks but not labels
+    ax.tick_params(axis=u'both', which=u'both',length=0)
+
+    ax.xaxis.grid(True,linestyle='--',linewidth=1)
+
+    ax.set_title(title, color=text_and_line_color,
+                 size=text_font_size)
+
+def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
+                           feature_type, top='all'):
+    """
+    """
+    # TODO: Test to make sure the top kwarg works for these types of plots
+
+
+    # Get feature name from series
+    feature_series = df[feature]
+
+
+    feature_type = feature_types[feature]
+
+    # Set flag indicating whether the feature is numerical or not
+    feature_numerical = \
+        ('categorical' not in feature_type and feature_type != 'id')
+
+    target_series = df[target_feature]
+
+    target_feature_type = feature_types[target_feature]
+
+    target_numerical = \
+        ('categorical' not in target_feature_type
+         and target_feature_type != 'id')
+
+    sorted_target_count_df = \
+        target_series.value_counts(
+            dropna=False).sort_values(ascending=False)
+
+    sorted_target_values = \
+        sorted_target_count_df.index.values[::-1]
+
+
+
+    # # Get target feature type, determine if it's numerical, and get its
+    # # sorted feature values
+    # if target_feature is not None:
+    #     target_feature_type = feature_types[target_feature]
+    #
+    #     # Get sorted target value feature values
+    #     target_series = df[target_feature]
+    #
+    #     # sorted_target_count_df = \
+    #     #     target_series.value_counts(
+    #     #         dropna=False).sort_values(ascending=False)
+    #
+    #     # sorted_target_values = \
+    #     #     sorted_target_count_df.index.values[::-1]
+    #
+    #     # Set flag indicating whether the target variable is numerical
+    #     target_numerical = \
+    #         ('categorical' not in target_feature_type
+    #          and target_feature_type != 'id')
+
+    # Sort feature values
+    sorted_value_count_df = \
+        feature_series.value_counts(
+            dropna=False).sort_values(ascending=False)
+
+    # Replace NaN index w/ string
+    sorted_value_count_df.index = \
+        pd.Series(sorted_value_count_df.index).replace(np.nan, 'nan')
+
+    # Cut data off so only top values shown if desired
+    if top == 'all':
+        sorted_feature_values = \
+            sorted_value_count_df.index.values[::-1]
+
+        # feature_value_counts = sorted_value_count_df.values[::-1]
+    else:
+        sorted_feature_values = \
+            sorted_value_count_df.index.values[:top][::-1]
+
+        # feature_value_counts = \
+        #     sorted_value_count_df.values[:top][::-1]
+
+    # Plot target feature
+
+    if not target_numerical and not feature_numerical:
+        # Pick data and hue features
+        data_feature = feature
+        hue_feature = target_feature
+
+        # Form pivot table between input and output label features
+        label_by_label = df[[data_feature, hue_feature]].pivot_table(
+            columns=[hue_feature],
+            index=[data_feature],
+            aggfunc=len)
+
+        # Order by specific data feature value
+        label_by_label = label_by_label.loc[sorted_feature_values]
+
+        # Fill in N/A values with zero
+        label_by_label.fillna(0,inplace=True)
+
+        # Obtain column feature
+        unique_col_feature_values = sorted_target_values
+
+        # Initalize value for bottom bar for stacked bar charts
+        sorted_row_values = sorted_feature_values
+
+        bottom_bar_buffer = np.zeros(len(sorted_row_values))
+
+        # Set tick-labels
+        tick_labels = sorted_row_values
+
+        # Set bar and tick-label positions
+        bar_positions = np.arange(len(sorted_row_values))
+
+        unique_col_feature_value_count = len(unique_col_feature_values)
+
+        # Plot stacked bars for row feature data corresponding to each column feature value
+        for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):
+            # Get color for bars
+            color = _get_color_val(
+                        unique_col_feature_value_ind,
+                        unique_col_feature_value_count)
+
+            # color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
+
+            # Get data for current col_feature value and column_feature
+            data = label_by_label[unique_col_feature_value]
+
+            # Add previous values to current buffer
+            if unique_col_feature_value_ind:
+                previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
+
+                bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
+
+            # Set series-specific parameters
+            # Set lower value to start bars from
+            bar_kwargs = dict(
+                height=0.8,
+                left=bottom_bar_buffer,
+                color=color,
+                tick_label='',
+                zorder=1000,
+                edgecolor=color
+            )
+
+            ## Set bar edge color (default is color of current bar unless provided by user)
+            bar_positions = np.arange(len(data))
+
+            # Plot bars corresponding to current series
+            ax.barh(bar_positions, data, **bar_kwargs)
+
+    elif target_numerical and not feature_numerical:
+        # Graph numerical target histogram colored by feature
+        pass
+    elif not target_numerical and feature_numerical:
+        # Graph numerical feature histogram colored by target
+        # category
+        pass
+    elif target_numerical and feature_numerical:
+        # Graph scatter plot of target versus feature
+        pass
+    else:
+        raise Exception("Logic error involving choosing subplot " \
+                        "type (e.g. hbar, hist, or scatter) " \
+                        "based on target and feature types " \
+                        "(e.g. numerical or categorical)")
+
+
+    """
+    target = category & feature = category
+        feature stacked hbar chart colored by target
+            Could possibly switch this with a flag
+    target = numerical & feature = category
+        Numerical target histogram colored by feature
+    target = category & feature = numerical
+        Numerical feature histogram colored by target category
+    target = numerical & feature = numerical
+        Scatter plot of target versus feature
+    """                 
+
+def draw_feature_distribution(ax, df, feature, feature_types,
+                              text_and_line_color, top='all',
+                              title='', text_font_size=12,
+                              small_text_size=10):
+    """
+    """
+    feature_series = df[feature]
+
+    feature_type = feature_types[feature]
+
+    feature_values = feature_series.values
+
+    if ('categorical' not in feature_type
+        and feature_type != 'id'):
+
+        non_null_values = feature_values[~np.isnan(feature_values)]
+
+        if non_null_values.any():
+            plot_hist(ax, non_null_values,
+                      text_and_line_color=text_and_line_color)
+    else:
+        sorted_value_count_df = \
+            feature_series.value_counts(
+                dropna=False).sort_values(ascending=False)
+
+        if top == 'all':
+            sorted_feature_values = sorted_value_count_df.index.values[::-1]
+            feature_value_counts = sorted_value_count_df.values[::-1]
+        else:
+            sorted_feature_values = sorted_value_count_df.index.values[:top][::-1]
+            feature_value_counts = sorted_value_count_df.values[:top][::-1]
+
+        # Get number of feature values
+        feature_value_count = len(sorted_feature_values)
+
+        color = []
+        for feature_value_ind,feature_value in enumerate(sorted_feature_values):
+             color.append(
+                _get_color_val(
+                    feature_value_ind,
+                    feature_value_count))
+
+        if top != 'all':
+            color = color[:top]
+
+        plot_bar(ax, sorted_feature_values, feature_value_counts,
+                 color=color, title=title, text_font_size=text_font_size)
+
+
+    # Set y-tick label sizes and colors
+    for x_tick in ax.xaxis.get_major_ticks():
+        x_tick.label.set_fontsize(small_text_size)
+        x_tick.label.set_color(text_and_line_color)
+
+    # Set y-tick label sizes and colors
+    for y_tick in ax.yaxis.get_major_ticks():
+        y_tick.label.set_fontsize(small_text_size)
+        y_tick.label.set_color(text_and_line_color)
+
+
+
 def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                  fig_kwargs=None, top='all'):
     """
@@ -113,29 +384,10 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
     # there is only one plot. This makes indexing more consistent.)
     fig, sub_axes = plt.subplots(**default_fig_kwargs)
 
+    # Get counts of all features
     df_counts = df.count()
 
-    # Get target feature type if provided
-    if target_feature is not None:
-        target_feature_type = feature_types[target_feature]
-
-        # Get sorted target value feature values
-        target_series = df[target_feature]
-
-        sorted_target_count_df = \
-            target_series.value_counts(
-                dropna=False).sort_values(ascending=False)
-
-        sorted_target_values = \
-            sorted_target_count_df.index.values[::-1]
-
-        # Set flag indicating whether the target variable is numerical
-        target_numerical = \
-            ('categorical' not in target_feature_type
-             and target_feature_type != 'id')
-
-
-    # Fill cells
+    # Fill figure cells
     for row_ind in xrange(row_count):
         feature = plot_vars[row_ind]
 
@@ -143,227 +395,33 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
 
         feature_series = df[feature]
 
-        feature_values = feature_series.values
-
         non_null_count = df_counts[feature]
 
+        # Derive feature distribution plot title
         title = '%s:    (%d/%d)' % (feature, non_null_count, len(df))
 
         for col_ind in xrange(col_count):
-
+            # Obtain current axis
             ax = sub_axes[row_ind, col_ind]
 
+            # Fill row with feature distribution if on left edge and response
+            # of target feature if on right edge
             if not col_ind:
-                # Graph distrubution
-                if ('categorical' not in feature_type
-                    and feature_type != 'id'):
-
-                    non_null_values = feature_values[~np.isnan(feature_values)]
-
-                    if non_null_values.any():
-                        plot_hist(ax, feature_values[~np.isnan(feature_values)],
-                                  text_and_line_color=text_and_line_color)
-                else:
-                    sorted_value_count_df = \
-                        feature_series.value_counts(
-                            dropna=False).sort_values(ascending=False)
-
-                    if top == 'all':
-                        sorted_feature_values = sorted_value_count_df.index.values[::-1]
-                        feature_value_counts = sorted_value_count_df.values[::-1]
-                    else:
-                        sorted_feature_values = sorted_value_count_df.index.values[:top][::-1]
-                        feature_value_counts = sorted_value_count_df.values[:top][::-1]
-
-                    # Get number of feature values
-                    feature_value_count = len(sorted_feature_values)
-
-                    color = []
-                    for feature_value_ind,feature_value in enumerate(sorted_feature_values):
-                         color.append(
-                            _get_color_val(
-                                feature_value_ind,
-                                feature_value_count))
-
-                    if top != 'all':
-                        color = color[:top]
-
-                    plot_bar(ax, sorted_feature_values, feature_value_counts,
-                             color=color, title=title)
-
-                ax.tick_params(axis=u'both', which=u'both',length=0) #pad=30
-
-
-                ax.set_title(title, color=text_and_line_color,
-                             size=text_font_size)
-
-                # Set y-tick label sizes and colors
-                for x_tick in ax.xaxis.get_major_ticks():
-                    x_tick.label.set_fontsize(small_text_size)
-                    x_tick.label.set_color(text_and_line_color)
-
-                # Set y-tick label sizes and colors
-                for y_tick in ax.yaxis.get_major_ticks():
-                    y_tick.label.set_fontsize(small_text_size)
-                    y_tick.label.set_color(text_and_line_color)
+                # Graph feature distrubution
+                draw_feature_distribution(ax, df, feature, feature_types,
+                                          text_and_line_color, top=top,
+                                          title=title,
+                                          text_font_size=text_font_size,
+                                          small_text_size=small_text_size)
             else:
-                # Sort feature values
-                sorted_value_count_df = \
-                    feature_series.value_counts(
-                        dropna=False).sort_values(ascending=False)
+                draw_target_vs_feature(ax, df, feature, target_feature,
+                                       feature_types, feature_type, top=top)
 
-                # Replace NaN index w/ string
-                sorted_value_count_df.index = \
-                    pd.Series(sorted_value_count_df.index).replace(np.nan,
-                                                                   'nan')
-
-                if top == 'all':
-                    sorted_feature_values = \
-                        sorted_value_count_df.index.values[::-1]
-                    feature_value_counts = sorted_value_count_df.values[::-1]
-                else:
-                    sorted_feature_values = \
-                        sorted_value_count_df.index.values[:top][::-1]
-                    feature_value_counts = \
-                        sorted_value_count_df.values[:top][::-1]
-
-                # Plot target feature
-                feature_numerical = \
-                    ('categorical' not in feature_type and feature_type != 'id')
-
-                if not target_numerical and not feature_numerical:
-                    # Pick data and hue features
-                    data_feature = feature
-                    hue_feature = target_feature
-
-                    # Form pivot table between input and output label features
-                    label_by_label = df[[data_feature, hue_feature]].pivot_table(
-                        columns=[hue_feature],
-                        index=[data_feature],
-                        aggfunc=len)
-
-                    # Order by specific data feature value
-                    label_by_label = label_by_label.loc[sorted_feature_values]
-
-                    # Fill in N/A values with zero
-                    label_by_label.fillna(0,inplace=True)
-
-                    # Obtain column feature
-                    unique_col_feature_values = sorted_target_values
-
-                    # Initalize value for bottom bar for stacked bar charts
-                    sorted_row_values = sorted_feature_values
-
-                    bottom_bar_buffer = np.zeros(len(sorted_row_values))
-
-                    # Set tick-labels
-                    tick_labels = sorted_row_values
-
-                    # Set bar and tick-label positions
-                    bar_positions = np.arange(len(sorted_row_values))
-
-                    unique_col_feature_value_count = len(unique_col_feature_values)
-
-                    # Plot stacked bars for row feature data corresponding to each column feature value
-                    for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):
-                        # Get color for bars
-                        color = _get_color_val(
-                                    unique_col_feature_value_ind,
-                                    unique_col_feature_value_count)
-
-                        # color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
-
-                        # Get data for current col_feature value and column_feature
-                        data = label_by_label[unique_col_feature_value]
-
-                        # Add previous values to current buffer
-                        if unique_col_feature_value_ind:
-                            previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
-
-                            bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
-
-                        # Set series-specific parameters
-                        # Set lower value to start bars from
-                        bar_kwargs = dict(
-                            height=0.8,
-                            left=bottom_bar_buffer,
-                            color=color,
-                            tick_label=tick_labels,
-                            zorder=1000,
-                            edgecolor=color
-                        )
-
-                        ## Set bar edge color (default is color of current bar unless provided by user)
-                        bar_positions = np.arange(len(data))
-
-                        # Plot bars corresponding to current series
-                        ax.barh(bar_positions, data, **bar_kwargs)
-
-                elif target_numerical and not feature_numerical:
-                    # Graph numerical target histogram colored by feature
-                    pass
-                elif not target_numerical and feature_numerical:
-                    # Graph numerical feature histogram colored by target
-                    # category
-                    pass
-                elif target_numerical and feature_numerical:
-                    # Graph scatter plot of target versus feature
-                    pass
-                else:
-                    raise Exception("Logic error involving choosing subplot " \
-                                    "type (e.g. hbar, hist, or scatter) " \
-                                    "based on target and feature types " \
-                                    "(e.g. numerical or categorical)")
-
-
-                """
-                target = category & feature = category
-                    feature stacked hbar chart colored by target
-                        Could possibly switch this with a flag
-                target = numerical & feature = category
-                    Numerical target histogram colored by feature
-                target = category & feature = numerical
-                    Numerical feature histogram colored by target category
-                target = numerical & feature = numerical
-                    Scatter plot of target versus feature
-                """
-
-
+            ax.tick_params(axis=u'both', which=u'both',length=0) #pad=30
 
     plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                         wspace=None, hspace=0.35)
 
-def plot_bar(ax, tick_labels, bar_values, color=None, title='',
-             text_and_line_color='black', text_size=10):
-    """
-    """
-    # Derive bar positions
-    bar_positions = np.arange(len(bar_values))
-
-    # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
-    bar_kwargs = dict(
-        height=0.8,
-        left=None,
-        color=color,
-        tick_label=tick_labels,
-        zorder=1000,
-    )
-
-    bars = ax.barh(bar_positions, bar_values, **bar_kwargs)
-
-    # Set left frame attributes
-    ax.spines['left'].set_linewidth(1.0)
-    ax.spines['left'].set_color(text_and_line_color)
-
-    # Remove all but bottom frame line
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-
-    # Remove ticks but not labels
-    ax.tick_params(axis=u'both', which=u'both',length=0)
-
-    ax.xaxis.grid(True,linestyle='--',linewidth=1)
 
 def plot_hist(ax, x, hist_kwargs=None, text_and_line_color=None):
     """
