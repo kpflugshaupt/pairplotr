@@ -13,6 +13,24 @@ import time
 
 import pandas as pd
 
+class Inspector(object):
+    """
+    Class that handles visualizing pandas dataframe data
+    """
+    def __init__(self):
+        # Copy of dataframe
+        self.df = None
+
+        self.feature_types = None
+
+        self.feature_colors = None
+
+        self.feature_value_counts = None
+
+        # Number of top feature values to display to cut down on processing
+        # time
+        self.top = None
+
 def plot_bar(ax, tick_labels, bar_values, color=None, title='',
              text_and_line_color='black', text_font_size=12,
              small_text_size=9):
@@ -121,19 +139,19 @@ def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
     # # Get feature name from series
     # feature_series = df[feature]
     #
-    # feature_type = feature_types[feature]
-    #
-    # # Set flag indicating whether the feature is numerical or not
-    # feature_numerical = \
-    #     ('categorical' not in feature_type and feature_type != 'id')
+    feature_type = feature_types[feature]
+
+    # Set flag indicating whether the feature is numerical or not
+    feature_numerical = \
+        ('categorical' not in feature_type and feature_type != 'id')
     #
     # target_series = df[target_feature]
     #
-    # target_feature_type = feature_types[target_feature]
-    #
-    # target_numerical = \
-    #     ('categorical' not in target_feature_type
-    #      and target_feature_type != 'id')
+    target_feature_type = feature_types[target_feature]
+
+    target_numerical = \
+        ('categorical' not in target_feature_type
+         and target_feature_type != 'id')
     #
     # sorted_target_count_df = \
     #     target_series.value_counts(
@@ -376,6 +394,7 @@ def draw_feature_distribution(ax, df, feature, feature_types,
         feature_value_count = len(sorted_feature_values)
 
         color = []
+
         for feature_value in sorted_feature_values:
             color.append(feature_value_colors[feature][feature_value])
 
@@ -416,25 +435,14 @@ def assign_feature_value_colors(df, feature_list, feature_types, top='all'):
             else:
                 sorted_value_count_df = \
                     df[feature].value_counts(dropna=False).sort_values(
-                                                        ascending=True)[:top]
+                                                ascending=True).nlargest(top)
+
 
             # Get feature values
             sorted_feature_values = list(sorted_value_count_df.index.values)
 
             # Get number of feature values
             feature_value_count = len(sorted_feature_values)
-
-            # color_count = feature_value_count
-            #
-            # color_map = 'jet'
-            #
-            # cmap = mpl_plt.get_cmap(color_map)
-            #
-            # cNorm = mpl_colors.Normalize(vmin=0, vmax=color_count-1)
-            #
-            # scalar_map = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
-
-            # Generate colors for each feature value
 
             for feature_value_ind, feature_value in \
                 enumerate(list(reversed(sorted_feature_values))):
@@ -449,6 +457,11 @@ def assign_feature_value_colors(df, feature_list, feature_types, top='all'):
 
 
     return feature_value_colors
+
+
+
+
+
 
 def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                  fig_kwargs=None, top='all'):
