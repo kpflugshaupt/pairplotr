@@ -17,19 +17,316 @@ class Inspector(object):
     """
     Class that handles visualizing pandas dataframe data
     """
-    def __init__(self):
+    def __init__(self, df):
         # Copy of dataframe
-        self.df = None
+        self.df = df.copy()
+
+        self.feature_value_counts = None
 
         self.feature_types = None
 
         self.feature_colors = None
 
-        self.feature_value_counts = None
-
         # Number of top feature values to display to cut down on processing
         # time
         self.top = None
+
+        # Obtain sorted value count dataframes for each feature
+        self._count_feature_values()
+
+        self._set_feature_types()
+
+    def inspect_data(self, plot_vars=None, target_feature=None,
+                     subplot_kwargs=None, fig_kwargs=None, top='all'):
+        """
+        Plots data distributions (histogram for numerical and horizontal bar
+        chart for non-numerical) for each feature alongside the response of
+        target feature (if specified)
+        """
+        pass
+        
+    def _set_feature_types(self, categorical_int_limit=10):
+        """
+        Automatically determines suspected types of features in dataframe
+
+        Parameters
+        ----------
+        categorical_int_limit : int, optional
+            How many unique values an integer feature needs before it is
+            treated as a categorical for the purpose of visualization
+
+        """
+        # TODO: Feed categorical_int_limit to the class initialization
+        # TODO: Add option to manually set types, either through the dataframe
+        # type or through a keyword argument
+        # TODO: Check input types
+
+        df = self.df
+
+        feature_value_counts = self.feature_value_counts
+
+        non_null_df = df
+
+        row_count = len(non_null_df)
+
+        feature_types = {}
+        for feature in non_null_df.columns:
+            unique_value_count = len(feature_value_counts[feature])
+
+            if non_null_df[feature].dtype == int:
+                feature_type = 'int'
+            elif non_null_df[feature].dtype == float:
+                feature_type = 'float'
+            else:
+                feature_type = 'categorical'
+
+            if row_count == unique_value_count:
+                if feature_type in ['int', 'categorical']:
+                    feature_type = 'id'
+
+            if (feature_type is 'int'
+                and feature_type is not 'id'
+                and unique_value_count > 0
+                and unique_value_count <= categorical_int_limit):
+
+                feature_type = 'categorical_int'
+
+            if feature not in feature_types:
+                feature_types[feature] = feature_type
+            else:
+                raise Exception(
+                    "Feature, %s, is duplicated in dataframe."%(feature))
+
+        self.feature_types = feature_types
+
+    def _count_feature_values(self):
+        df = self.df
+
+        feature_value_counts = {}
+
+        for feature in self.df.columns:
+            if feature not in feature_value_counts:
+                feature_value_counts[feature] = {}
+
+            sorted_df = df[feature].value_counts(dropna=False).sort_values(
+                                                                ascending=False)
+            feature_value_counts[feature] = sorted_df
+
+        self.feature_value_counts = feature_value_counts
+
+def inspect_data(plot_vars=None, target_feature=None, subplot_kwargs=None,
+                 fig_kwargs=None, top='all'):
+    """
+    Graphs distribution of each variable and its corresponding effect on the
+    target feature
+    """
+
+
+    # Replace NaN temporarily with the string 'nan' for visualization
+    df = df.fillna(value='tmp_nan')
+
+    feature_types = _get_feature_types(df)
+
+    # Initialize plotted features to all if not provided
+    if plot_vars is None:
+        if target_feature:
+            plot_vars = [key for key in feature_types.keys()
+                         if key != target_feature]
+
+            plot_vars.insert(0, target_feature)
+        else:
+            plot_vars = feature_types.keys()
+
+    # Get feature value colors
+    feature_value_colors = \
+        assign_feature_value_colors(df, plot_vars, feature_types, top=top)
+
+    # Calulate plot dimensions
+    row_count = len(plot_vars)
+    if target_feature is not None:
+        # row_count = len(plot_vars)-1
+        col_count = 2
+    else:
+        # row_count = len(plot_vars)
+        col_count = 1
+
+    # Set general settings for individual subplots
+    default_subplot_kwargs = dict(
+        title = '',
+        facecolor = 'white', # fc overrides this so it's not set
+        alpha =	1.0, # float (0.0 transparent through 1.0 opaque)
+        frame_on = True, # [ True | False ]
+        visible = True, # [True | False]
+        xlabel = '',
+        xlim = None, #Use with autoscalex_on set to False to constrain subplots
+        autoscalex_on = True, # Set to False and specify xlim to constrain subplots
+        xmargin = 0.05, # Percent of range of x data to use to pad around x-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on both left and right. Seems default is 0.05)
+        xscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
+        # xticklabels = [], # Can set this externally if desired
+        # xticks = [], # Can set this externally if desired
+        ylabel = '',
+        # ylim = None, # Must be set externally, unlike xlim and autoscalex_on, for similar behavior
+        autoscaley_on = True,
+        ymargin = 0.05, # Percent of range of y data to use to pad above the y-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on above. Seems default is 0.05)
+        yscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
+        # yticklabels = [], # Can set this externally if desired
+        # yticks = [], # Can set this externally if desired
+        zorder = None, # Order relative to other elements
+    )
+
+    # Override default subplot kwargs if provided by user
+    if subplot_kwargs is not None:
+        for key, value in subplot_kwargs.iteritems():
+            default_subplot_kwargs[key] = value
+
+    # Set default figure parameters
+    default_fig_kwargs = dict(
+        # Figure kwargs
+        nrows=row_count,
+        ncols=col_count,
+        sharex=False,
+        sharey=False,
+        squeeze=False,
+        gridspec_kw=None,
+        # Figure kwargs
+        figsize=(5, 100),
+        facecolor='white',
+        # Subplots kwargs
+        subplot_kw = default_subplot_kwargs,
+    )
+
+    # Override default figure kwargs if provided by user
+    if fig_kwargs is not None:
+        for key, value in fig_kwargs.iteritems():
+            default_fig_kwargs[key] = value
+
+    # Set default text parameters
+    text_font_size = 12
+    tick_label_size = text_font_size-3
+
+    text_properties = {
+        'tick_labels': {
+            'family': 'sans-serif',
+            'weight': 'normal',
+            'size': tick_label_size,
+
+        }
+    }
+
+    small_text_size = 10
+
+    # Set text and line color
+    grayLevel = 0.6
+    text_and_line_color = (0.0, 0.0, 0.0, grayLevel)
+
+    # Set padding of axis labels so they don't overlap with tick-labels
+    label_padding = 0.05
+
+    # Initialize plot (Kwarg 'squeeze' used to make output a matrix, even if
+    # there is only one plot. This makes indexing more consistent.)
+    fig, sub_axes = plt.subplots(**default_fig_kwargs)
+
+    # Get counts of all features
+    df_counts = df.count()
+
+    # Fill figure cells
+    for row_ind in xrange(row_count):
+        feature = plot_vars[row_ind]
+
+        feature_type = feature_types[feature]
+
+        feature_series = df[feature]
+
+        non_null_count = df_counts[feature]
+
+        # Derive feature distribution plot title
+        title = '%s:    (%d/%d)' % (feature, non_null_count, len(df))
+
+        for col_ind in xrange(col_count):
+            # Obtain current axis
+            ax = sub_axes[row_ind, col_ind]
+
+            # Fill row with feature distribution if on left edge and response
+            # of target feature if on right edge
+            if not col_ind:
+                # Graph feature distrubution
+                draw_feature_distribution(
+                    ax, df, feature, feature_types,
+                    feature_value_colors, text_and_line_color,
+                    top=top, title=title, text_font_size=text_font_size,
+                    small_text_size=small_text_size
+                    )
+
+            else:
+                if row_ind:
+                    draw_target_vs_feature(
+                        ax, df, feature, target_feature, feature_types,
+                        feature_value_colors=feature_value_colors, top=top,
+                        tick_labels='',
+                        text_and_line_color=text_and_line_color,
+                        text_font_size=text_font_size,
+                        small_text_size=small_text_size)
+                else:
+                    ax.axis('off')
+
+            ax.tick_params(axis=u'both', which=u'both',length=0)
+
+    plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
+                        wspace=None, hspace=0.35)
+
+def assign_feature_value_colors(df, feature_list, feature_types, top='all'):
+    """
+    """
+    feature_value_colors = {}
+
+    for feature in feature_list:
+        # Get feature type
+        feature_type = feature_types[feature]
+
+        # Initialize new features
+        if feature in feature_value_colors:
+            raise Exception("Feature %s is duplicated"%(feature))
+        else:
+            feature_value_colors[feature] = {}
+
+        feature_is_numerical = ('categorical' not in feature_type \
+                             and feature_type != 'id')
+
+        # Get feature value order, value counts, and color for each value
+        if not feature_is_numerical:
+            # Get feature value counts and sort in ascending order by count
+            if top=='all':
+                sorted_value_count_df = \
+                    df[feature].value_counts(dropna=False).sort_values(
+                                                                ascending=True)
+            else:
+                sorted_value_count_df = \
+                    df[feature].value_counts(dropna=False).sort_values(
+                                                ascending=True).nlargest(top)
+
+
+            # Get feature values
+            sorted_feature_values = list(sorted_value_count_df.index.values)
+
+            # Get number of feature values
+            feature_value_count = len(sorted_feature_values)
+
+            for feature_value_ind, feature_value in \
+                enumerate(list(reversed(sorted_feature_values))):
+                # feature_value_colors[feature][feature_value] = \
+                #     scalar_map.to_rgba(feature_value_ind)
+
+
+                feature_value_colors[feature][feature_value] = \
+                    _get_color_val(feature_value_ind, feature_value_count)
+
+
+
+
+    return feature_value_colors
+
+
+
 
 def plot_bar(ax, tick_labels, bar_values, color=None, title='',
              text_and_line_color='black', text_font_size=12,
@@ -407,221 +704,14 @@ def draw_feature_distribution(ax, df, feature, feature_types,
                  color=color, title=title, text_font_size=text_font_size,
                  small_text_size=small_text_size)
 
-def assign_feature_value_colors(df, feature_list, feature_types, top='all'):
-    """
-    """
-    feature_value_colors = {}
-
-    for feature in feature_list:
-        # Get feature type
-        feature_type = feature_types[feature]
-
-        # Initialize new features
-        if feature in feature_value_colors:
-            raise Exception("Feature %s is duplicated"%(feature))
-        else:
-            feature_value_colors[feature] = {}
-
-        feature_is_numerical = ('categorical' not in feature_type \
-                             and feature_type != 'id')
-
-        # Get feature value order, value counts, and color for each value
-        if not feature_is_numerical:
-            # Get feature value counts and sort in ascending order by count
-            if top=='all':
-                sorted_value_count_df = \
-                    df[feature].value_counts(dropna=False).sort_values(
-                                                                ascending=True)
-            else:
-                sorted_value_count_df = \
-                    df[feature].value_counts(dropna=False).sort_values(
-                                                ascending=True).nlargest(top)
-
-
-            # Get feature values
-            sorted_feature_values = list(sorted_value_count_df.index.values)
-
-            # Get number of feature values
-            feature_value_count = len(sorted_feature_values)
-
-            for feature_value_ind, feature_value in \
-                enumerate(list(reversed(sorted_feature_values))):
-                # feature_value_colors[feature][feature_value] = \
-                #     scalar_map.to_rgba(feature_value_ind)
-
-
-                feature_value_colors[feature][feature_value] = \
-                    _get_color_val(feature_value_ind, feature_value_count)
-
-
-
-
-    return feature_value_colors
 
 
 
 
 
 
-def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
-                 fig_kwargs=None, top='all'):
-    """
-    Graphs distribution of each variable and its corresponding effect on the
-    target feature
-    """
-    df = df.copy()
 
-    # Replace NaN temporarily with the string 'nan' for visualization
-    df = df.fillna(value='tmp_nan')
 
-    feature_types = _get_feature_types(df)
-
-    # Initialize plotted features to all if not provided
-    if plot_vars is None:
-        if target_feature:
-            plot_vars = [key for key in feature_types.keys()
-                         if key != target_feature]
-
-            plot_vars.insert(0, target_feature)
-        else:
-            plot_vars = feature_types.keys()
-
-    # Get feature value colors
-    feature_value_colors = \
-        assign_feature_value_colors(df, plot_vars, feature_types, top=top)
-
-    # Calulate plot dimensions
-    row_count = len(plot_vars)
-    if target_feature is not None:
-        # row_count = len(plot_vars)-1
-        col_count = 2
-    else:
-        # row_count = len(plot_vars)
-        col_count = 1
-
-    # Set general settings for individual subplots
-    default_subplot_kwargs = dict(
-        title = '',
-        facecolor = 'white', # fc overrides this so it's not set
-        alpha =	1.0, # float (0.0 transparent through 1.0 opaque)
-        frame_on = True, # [ True | False ]
-        visible = True, # [True | False]
-        xlabel = '',
-        xlim = None, #Use with autoscalex_on set to False to constrain subplots
-        autoscalex_on = True, # Set to False and specify xlim to constrain subplots
-        xmargin = 0.05, # Percent of range of x data to use to pad around x-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on both left and right. Seems default is 0.05)
-        xscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
-        # xticklabels = [], # Can set this externally if desired
-        # xticks = [], # Can set this externally if desired
-        ylabel = '',
-        # ylim = None, # Must be set externally, unlike xlim and autoscalex_on, for similar behavior
-        autoscaley_on = True,
-        ymargin = 0.05, # Percent of range of y data to use to pad above the y-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on above. Seems default is 0.05)
-        yscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
-        # yticklabels = [], # Can set this externally if desired
-        # yticks = [], # Can set this externally if desired
-        zorder = None, # Order relative to other elements
-    )
-
-    # Override default subplot kwargs if provided by user
-    if subplot_kwargs is not None:
-        for key, value in subplot_kwargs.iteritems():
-            default_subplot_kwargs[key] = value
-
-    # Set default figure parameters
-    default_fig_kwargs = dict(
-        # Figure kwargs
-        nrows=row_count,
-        ncols=col_count,
-        sharex=False,
-        sharey=False,
-        squeeze=False,
-        gridspec_kw=None,
-        # Figure kwargs
-        figsize=(5, 100),
-        facecolor='white',
-        # Subplots kwargs
-        subplot_kw = default_subplot_kwargs,
-    )
-
-    # Override default figure kwargs if provided by user
-    if fig_kwargs is not None:
-        for key, value in fig_kwargs.iteritems():
-            default_fig_kwargs[key] = value
-
-    # Set default text parameters
-    text_font_size = 12
-    tick_label_size = text_font_size-3
-
-    text_properties = {
-        'tick_labels': {
-            'family': 'sans-serif',
-            'weight': 'normal',
-            'size': tick_label_size,
-
-        }
-    }
-
-    small_text_size = 10
-
-    # Set text and line color
-    grayLevel = 0.6
-    text_and_line_color = (0.0, 0.0, 0.0, grayLevel)
-
-    # Set padding of axis labels so they don't overlap with tick-labels
-    label_padding = 0.05
-
-    # Initialize plot (Kwarg 'squeeze' used to make output a matrix, even if
-    # there is only one plot. This makes indexing more consistent.)
-    fig, sub_axes = plt.subplots(**default_fig_kwargs)
-
-    # Get counts of all features
-    df_counts = df.count()
-
-    # Fill figure cells
-    for row_ind in xrange(row_count):
-        feature = plot_vars[row_ind]
-
-        feature_type = feature_types[feature]
-
-        feature_series = df[feature]
-
-        non_null_count = df_counts[feature]
-
-        # Derive feature distribution plot title
-        title = '%s:    (%d/%d)' % (feature, non_null_count, len(df))
-
-        for col_ind in xrange(col_count):
-            # Obtain current axis
-            ax = sub_axes[row_ind, col_ind]
-
-            # Fill row with feature distribution if on left edge and response
-            # of target feature if on right edge
-            if not col_ind:
-                # Graph feature distrubution
-                draw_feature_distribution(
-                    ax, df, feature, feature_types,
-                    feature_value_colors, text_and_line_color,
-                    top=top, title=title, text_font_size=text_font_size,
-                    small_text_size=small_text_size
-                    )
-
-            else:
-                if row_ind:
-                    draw_target_vs_feature(
-                        ax, df, feature, target_feature, feature_types,
-                        feature_value_colors=feature_value_colors, top=top,
-                        tick_labels='',
-                        text_and_line_color=text_and_line_color,
-                        text_font_size=text_font_size,
-                        small_text_size=small_text_size)
-                else:
-                    ax.axis('off')
-
-            ax.tick_params(axis=u'both', which=u'both',length=0)
-
-    plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
-                        wspace=None, hspace=0.35)
 
 def draw_target_legend(ax, df, target_feature, feature_value_colors,
                        legend_marker_size=5, legend_font_size=5):
