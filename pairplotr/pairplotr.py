@@ -9,6 +9,8 @@ import matplotlib.pyplot as mpl_plt
 import matplotlib.colors as mpl_colors
 import matplotlib.cm as cmx
 
+import time
+
 import pandas as pd
 
 def plot_bar(ax, tick_labels, bar_values, color=None, title='',
@@ -16,27 +18,27 @@ def plot_bar(ax, tick_labels, bar_values, color=None, title='',
              small_text_size=9):
     """
     """
-    # Derive bar positions
-    bar_positions = np.arange(len(bar_values))
-
-    # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
-    bar_kwargs = dict(
-        height=0.8,
-        left=None,
-        color=color,
-        tick_label=tick_labels,
-        zorder=1000,
-    )
-
-    bar_positions = np.arange(bar_values.shape[0])
-
-    # Initialize bottom bar buffer
-    bottom_bar_buffer = np.zeros(bar_values.shape[0])
+    # # Derive bar positions
+    # bar_positions = np.arange(len(bar_values))
+    #
+    # # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
+    # bar_kwargs = dict(
+    #     height=0.8,
+    #     left=None,
+    #     color=color,
+    #     tick_label=tick_labels,
+    #     zorder=1000,
+    # )
 
     if len(bar_values.shape) == 1:
         bar_values = bar_values.reshape(-1, 1)
 
         color = [color]
+
+    bar_positions = np.arange(bar_values.shape[0])[::-1]
+
+    # Initialize bottom bar buffer
+    bottom_bar_buffer = np.zeros(bar_values.shape[0])
 
     # Plot stacked bars for row feature data corresponding to each column feature value
     for data_ind in xrange(bar_values.shape[1]):
@@ -61,46 +63,6 @@ def plot_bar(ax, tick_labels, bar_values, color=None, title='',
 
         ax.barh(bar_positions, data, **bar_kwargs)
 
-
-    #
-    #
-    # for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):
-    #     # Get color for bars
-    #     color = _get_color_val(
-    #                 unique_col_feature_value_ind,
-    #                 unique_col_feature_value_count)
-    #
-    #     # color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
-    #
-    #     # Get data for current col_feature value and column_feature
-    #     data = label_by_label[unique_col_feature_value]
-    #
-    #     # Add previous values to current buffer
-    #     if unique_col_feature_value_ind:
-    #         previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
-    #
-    #         bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
-    #
-    #     # Set series-specific parameters
-    #     # Set lower value to start bars from
-    #     bar_kwargs = dict(
-    #         height=0.8,
-    #         left=bottom_bar_buffer,
-    #         color=color,
-    #         tick_label=tick_labels,
-    #         zorder=1000,
-    #         edgecolor=color
-    #     )
-    #
-    #     ## Set bar edge color (default is color of current bar unless provided by user)
-    #     bar_positions = np.arange(len(data))
-    #
-    #     # Plot bars corresponding to current series
-    #     # ax.barh(bar_positions, data, **bar_kwargs)
-
-
-    # bars = ax.barh(bar_positions, bar_values, **bar_kwargs)
-
     # Set left frame attributes
     ax.spines['left'].set_linewidth(1.0)
     ax.spines['left'].set_color(text_and_line_color)
@@ -113,10 +75,9 @@ def plot_bar(ax, tick_labels, bar_values, color=None, title='',
     # Remove ticks but not labels
     ax.tick_params(axis=u'both', which=u'both',length=0)
 
-    ax.xaxis.grid(True,linestyle='--',linewidth=1)
+    ax.xaxis.grid(True, linestyle='--', linewidth=1)
 
-    ax.set_title(title, color=text_and_line_color,
-                 size=text_font_size)
+    ax.set_title(title, color=text_and_line_color, size=text_font_size)
 
     # Set y-tick label sizes and colors
     for x_tick in ax.xaxis.get_major_ticks():
@@ -129,152 +90,225 @@ def plot_bar(ax, tick_labels, bar_values, color=None, title='',
         y_tick.label.set_color(text_and_line_color)
 
 def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
-                           feature_type, top='all', tick_labels=None,
+                           feature_value_colors, top='all', tick_labels=None,
                            text_and_line_color='black',
                            text_font_size=12, small_text_size=9):
     """
+
     """
-    # Get feature name from series
-    feature_series = df[feature]
+    # Make copy of dataframe so it's not changed
+    df = df.copy()
 
-    feature_type = feature_types[feature]
+    # Fill dataframe with replacements for NaNs for visualization
+    df = df.fillna(value='tmp_nan')
 
-    # Set flag indicating whether the feature is numerical or not
-    feature_numerical = \
-        ('categorical' not in feature_type and feature_type != 'id')
+    # # Initialize plotted features to all if not provided
+    # if plot_vars is None:
+    #     if target_feature:
+    #         plot_vars = [key for key in feature_types.keys()
+    #                      if key != target_feature]
+    #
+    #         plot_vars.insert(0, target_feature)
+    #     else:
+    #         plot_vars = feature_types.keys()
+    #
+    # feature_value_colors = \
+    #     ppr.assign_feature_value_colors(df, plot_vars, feature_types, top=top)
 
-    target_series = df[target_feature]
 
-    target_feature_type = feature_types[target_feature]
 
-    target_numerical = \
-        ('categorical' not in target_feature_type
-         and target_feature_type != 'id')
 
-    sorted_target_count_df = \
-        target_series.value_counts(
-            dropna=False).sort_values(ascending=False)
-
-    sorted_target_values = \
-        sorted_target_count_df.index.values[::-1]
-
-    # Sort feature values
-    sorted_value_count_df = \
-        feature_series.value_counts(
-            dropna=False).sort_values(ascending=False)
-
-    # Replace NaN index w/ string
-    sorted_value_count_df.index = \
-        pd.Series(sorted_value_count_df.index).replace(np.nan, 'nan')
-
-    # Cut data off so only top values shown if desired
-    if top == 'all':
-        sorted_feature_values = \
-            sorted_value_count_df.index.values[::-1]
-
-        # feature_value_counts = sorted_value_count_df.values[::-1]
-    else:
-        sorted_feature_values = \
-            sorted_value_count_df.index.values[:top][::-1]
-
-        # feature_value_counts = \
-        #     sorted_value_count_df.values[:top][::-1]
-
-    # Plot target feature
+    # # Get feature name from series
+    # feature_series = df[feature]
+    #
+    # feature_type = feature_types[feature]
+    #
+    # # Set flag indicating whether the feature is numerical or not
+    # feature_numerical = \
+    #     ('categorical' not in feature_type and feature_type != 'id')
+    #
+    # target_series = df[target_feature]
+    #
+    # target_feature_type = feature_types[target_feature]
+    #
+    # target_numerical = \
+    #     ('categorical' not in target_feature_type
+    #      and target_feature_type != 'id')
+    #
+    # sorted_target_count_df = \
+    #     target_series.value_counts(
+    #         dropna=False).sort_values(ascending=False)
+    #
+    # sorted_target_values = \
+    #     sorted_target_count_df.index.values[::-1]
+    #
+    # # Sort feature values
+    # sorted_value_count_df = \
+    #     feature_series.value_counts(
+    #         dropna=False).sort_values(ascending=False)
+    #
+    # # Replace NaN index w/ string
+    # sorted_value_count_df.index = \
+    #     pd.Series(sorted_value_count_df.index).replace(np.nan, 'nan')
+    #
+    # # Cut data off so only top values shown if desired
+    # if top == 'all':
+    #     sorted_feature_values = \
+    #         sorted_value_count_df.index.values
+    # else:
+    #     sorted_feature_values = \
+    #         sorted_value_count_df.index.values[:top]
 
     if not target_numerical and not feature_numerical:
+        sorted_feature_value_df = df[feature].value_counts(dropna=False).sort_values(ascending=False)
 
-        # Pick data and hue features
-        data_feature = feature
-        hue_feature = target_feature
+        feature_value_order = list(sorted_feature_value_df[:top].index.values)
 
-        # Form pivot table between input and output label features
-        label_by_label = df[[data_feature, hue_feature]].pivot_table(
-            columns=[hue_feature],
-            index=[data_feature],
-            aggfunc=len)
+        sorted_target_value_df = df[target_feature].value_counts(dropna=False).sort_values(ascending=False)
 
-        # Order by specific data feature value
-        label_by_label = label_by_label.loc[sorted_feature_values]
+        sorted_target_values = list(sorted_target_value_df.index.values)
 
-        # Fill in N/A values with zero
-        label_by_label.fillna(0,inplace=True)
+        sorted_target_value_set = set(sorted_target_values)
 
-        # Obtain column feature
-        unique_col_feature_values = sorted_target_values
+        counts = np.zeros([len(sorted_target_values), len(feature_value_order)])
+        colors = np.zeros([len(sorted_target_values), len(feature_value_order)], dtype=object)
+        for feature_value_ind, feature_value in enumerate(feature_value_order):
+            target_dist_in_feature_value_df = df[[feature, target_feature]][df[feature]==feature_value][target_feature].value_counts(dropna=False).sort_values(ascending=False)
 
-        # Initalize value for bottom bar for stacked bar charts
-        sorted_row_values = sorted_feature_values
+            target_dist_in_feature_values = list(target_dist_in_feature_value_df.index.values)
 
-        bottom_bar_buffer = np.zeros(len(sorted_row_values))
+            missing_features = sorted_target_value_set-set(target_dist_in_feature_values)
 
-        # Set tick-labels
-        if tick_labels is None:
-            tick_labels = sorted_row_values
+            for missing_feature in missing_features:
+                target_dist_in_feature_value_df.loc[missing_feature] = 0
 
-        # Set bar and tick-label positions
-        bar_positions = np.arange(len(sorted_row_values))
+            target_value_counts = target_dist_in_feature_value_df.values
+            target_values = target_dist_in_feature_value_df.index.values
 
-        unique_col_feature_value_count = len(unique_col_feature_values)
+            for target_value_count_ind, target_value_count in enumerate(target_value_counts):
+                counts[target_value_count_ind, feature_value_ind] = target_value_count
 
-        # # Plot stacked bars for row feature data corresponding to each column feature value
-        # for unique_col_feature_value_ind,unique_col_feature_value in enumerate(unique_col_feature_values):
-        #     # Get color for bars
-        #     color = _get_color_val(
-        #                 unique_col_feature_value_ind,
-        #                 unique_col_feature_value_count)
+                target_value = target_values[target_value_count_ind]
+
+                color = feature_value_colors[target_feature][target_value]
+
+                colors[target_value_count_ind, feature_value_ind] = color
+
+        # Get pivot table
+        target_dist_in_feature = df[[feature, target_feature]].pivot_table(
+                    columns=[target_feature],
+                    index=[feature],
+                    aggfunc=len).fillna(0,inplace=False)
+
+        # Get the descending order of feature values
+        feature_value_order = list(df[feature].value_counts(dropna=False).sort_values(ascending=False).index.values)
+
+        all_target_values = list(df[target_feature].unique())
+
+        counts = np.zeros(target_dist_in_feature.shape[::-1])
+        colors = np.zeros(target_dist_in_feature.shape[::-1], dtype=object)
+        for feature_value_ind, feature_value in enumerate(feature_value_order):
+            # Get the descending order of target values corresponding to the
+            # current feature value
+            target_value_order = list(df[df[feature] == feature_value][target_feature].value_counts(dropna=False).sort_values(ascending=False).index.values)
+
+            # Add missing target values
+            target_value_order.extend(list(set(all_target_values)-set(target_value_order)))
+
+            # Calculate and save the count of each target feature value and its
+            # corresponding color for the curernt feature value
+            for target_feature_value_ind, target_feature_value in enumerate(target_value_order):
+                color = feature_value_colors[target_feature][target_feature_value]
+
+                count = target_dist_in_feature.loc[feature_value][target_feature_value]
+
+                counts[target_feature_value_ind, feature_value_ind] = count
+
+                colors[target_feature_value_ind, feature_value_ind] = color
+
+        # if top == 'all':
+        #     sorted_feature_values = \
+        #         sorted_value_count_df.index.values
+        # else:
+        #     sorted_feature_values = \
+        #         sorted_value_count_df.index.values[:top]
+
+
+        if top == 'all':
+            bar_values = counts
+        else:
+            bar_values = counts[:,:top]
+
+
+
+        # plot_bar(ax, tick_labels, bar_values.T, color=colors, title='',
+        #          text_font_size=text_font_size,
+        #          text_and_line_color=text_and_line_color,
+        #          small_text_size=small_text_size)
+
+
+
+
+        # # Pick data and hue features
+        # data_feature = feature
+        # hue_feature = target_feature
         #
-        #     # color = feature_attributes[hue_feature]['feature_value_colors'][unique_col_feature_value]
+        # df = df.replace(np.nan, 'nan')
         #
-        #     # Get data for current col_feature value and column_feature
-        #     data = label_by_label[unique_col_feature_value]
+        # # Form pivot table between input and output label features
+        # label_by_label = df[[data_feature, hue_feature]].pivot_table(
+        #     columns=[hue_feature],
+        #     index=[data_feature],
+        #     aggfunc=len)
         #
-        #     # Add previous values to current buffer
-        #     if unique_col_feature_value_ind:
-        #         previous_feature_value = unique_col_feature_values[unique_col_feature_value_ind-1]
+        # df = df.replace('nan', np.nan)
         #
-        #         bottom_bar_buffer = bottom_bar_buffer + label_by_label[previous_feature_value]
+        # # Order by specific data feature value
+        # label_by_label = label_by_label.loc[reversed(sorted_feature_values)]
         #
-        #     # Set series-specific parameters
-        #     # Set lower value to start bars from
-        #     bar_kwargs = dict(
-        #         height=0.8,
-        #         left=bottom_bar_buffer,
-        #         color=color,
-        #         tick_label=tick_labels,
-        #         zorder=1000,
-        #         edgecolor=color
-        #     )
+        # # Fill in N/A values with zero
+        # label_by_label.fillna(0,inplace=True)
         #
-        #     ## Set bar edge color (default is color of current bar unless provided by user)
-        #     bar_positions = np.arange(len(data))
+        # # Obtain column feature
+        # unique_col_feature_values = sorted_target_values
         #
-        #     # Plot bars corresponding to current series
-        #     # ax.barh(bar_positions, data, **bar_kwargs)
+        # # Initalize value for bottom bar for stacked bar charts
+        # sorted_row_values = sorted_feature_values
+        #
+        # bottom_bar_buffer = np.zeros(len(sorted_row_values))
+        #
+        # # Set tick-labels
+        # if tick_labels is None:
+        #     tick_labels = sorted_row_values
+        #
+        # # Set bar and tick-label positions
+        # bar_positions = np.arange(len(sorted_row_values))
+        #
+        # unique_col_feature_value_count = len(unique_col_feature_values)
+        #
+        # bar_values = []
+        # colors = []
+        #
+        # bar_values = label_by_label.values
+        #
+        # for unique_col_feature_value_ind, unique_col_feature_value \
+        #     in enumerate(unique_col_feature_values):
+        #
+        #
+        #     color = feature_value_colors[hue_feature][unique_col_feature_value]
+        #     # color = _get_color_val(
+        #     #             unique_col_feature_value_ind,
+        #     #             unique_col_feature_value_count)
+        #
+        #
+        #     colors.append([color for x in xrange(bar_values.shape[0])])
+        #
+        # colors = colors
 
-        bar_values = []
-        colors = []
-
-        bar_values = label_by_label.values
-
-        for unique_col_feature_value_ind, unique_col_feature_value \
-            in enumerate(unique_col_feature_values):
-
-            # bar_data = label_by_label[unique_col_feature_value].values
-            # bar_values.append(bar_data)
-
-            color = _get_color_val(
-                        unique_col_feature_value_ind,
-                        unique_col_feature_value_count)
-
-
-            colors.append([color for x in xrange(bar_values.shape[0])])
-
-
-        plot_bar(ax, tick_labels, bar_values, color=colors, title='',
-                     text_font_size=text_font_size,
-                     text_and_line_color=text_and_line_color,
-                     small_text_size=small_text_size)
+        # plot_bar(ax, tick_labels, bar_values, color=colors, title='',
+        #          text_font_size=text_font_size,
+        #          text_and_line_color=text_and_line_color,
+        #          small_text_size=small_text_size)
 
 
     elif target_numerical and not feature_numerical:
@@ -307,8 +341,8 @@ def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
     """
 
 def draw_feature_distribution(ax, df, feature, feature_types,
-                              text_and_line_color, top='all',
-                              title='', text_font_size=12,
+                              feature_value_colors, text_and_line_color,
+                              top='all', title='', text_font_size=12,
                               small_text_size=10):
     """
     """
@@ -332,21 +366,20 @@ def draw_feature_distribution(ax, df, feature, feature_types,
                 dropna=False).sort_values(ascending=False)
 
         if top == 'all':
-            sorted_feature_values = sorted_value_count_df.index.values[::-1]
-            feature_value_counts = sorted_value_count_df.values[::-1]
+            sorted_feature_values = sorted_value_count_df.index.values
+            feature_value_counts = sorted_value_count_df.values
         else:
-            sorted_feature_values = sorted_value_count_df.index.values[:top][::-1]
-            feature_value_counts = sorted_value_count_df.values[:top][::-1]
+            sorted_feature_values = sorted_value_count_df.index.values[:top]
+            feature_value_counts = sorted_value_count_df.values[:top]
 
         # Get number of feature values
         feature_value_count = len(sorted_feature_values)
 
         color = []
-        for feature_value_ind,feature_value in enumerate(sorted_feature_values):
-             color.append(
-                _get_color_val(
-                    feature_value_ind,
-                    feature_value_count))
+        for feature_value in sorted_feature_values:
+            color.append(feature_value_colors[feature][feature_value])
+
+        color = color
 
         if top != 'all':
             color = color[:top]
@@ -355,15 +388,67 @@ def draw_feature_distribution(ax, df, feature, feature_types,
                  color=color, title=title, text_font_size=text_font_size,
                  small_text_size=small_text_size)
 
-    # # Set y-tick label sizes and colors
-    # for x_tick in ax.xaxis.get_major_ticks():
-    #     x_tick.label.set_fontsize(small_text_size)
-    #     x_tick.label.set_color(text_and_line_color)
-    #
-    # # Set y-tick label sizes and colors
-    # for y_tick in ax.yaxis.get_major_ticks():
-    #     y_tick.label.set_fontsize(small_text_size)
-    #     y_tick.label.set_color(text_and_line_color)
+def assign_feature_value_colors(df, feature_list, feature_types, top='all'):
+    """
+    """
+    feature_value_colors = {}
+
+    for feature in feature_list:
+        # Get feature type
+        feature_type = feature_types[feature]
+
+        # Initialize new features
+        if feature in feature_value_colors:
+            raise Exception("Feature %s is duplicated"%(feature))
+        else:
+            feature_value_colors[feature] = {}
+
+        feature_is_numerical = ('categorical' not in feature_type \
+                             and feature_type != 'id')
+
+        # Get feature value order, value counts, and color for each value
+        if not feature_is_numerical:
+            # Get feature value counts and sort in ascending order by count
+            if top=='all':
+                sorted_value_count_df = \
+                    df[feature].value_counts(dropna=False).sort_values(
+                                                                ascending=True)
+            else:
+                sorted_value_count_df = \
+                    df[feature].value_counts(dropna=False).sort_values(
+                                                        ascending=True)[:top]
+
+            # Get feature values
+            sorted_feature_values = list(sorted_value_count_df.index.values)
+
+            # Get number of feature values
+            feature_value_count = len(sorted_feature_values)
+
+            # color_count = feature_value_count
+            #
+            # color_map = 'jet'
+            #
+            # cmap = mpl_plt.get_cmap(color_map)
+            #
+            # cNorm = mpl_colors.Normalize(vmin=0, vmax=color_count-1)
+            #
+            # scalar_map = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
+
+            # Generate colors for each feature value
+
+            for feature_value_ind, feature_value in \
+                enumerate(list(reversed(sorted_feature_values))):
+                # feature_value_colors[feature][feature_value] = \
+                #     scalar_map.to_rgba(feature_value_ind)
+
+
+                feature_value_colors[feature][feature_value] = \
+                    _get_color_val(feature_value_ind, feature_value_count)
+
+
+
+
+    return feature_value_colors
 
 def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
                  fig_kwargs=None, top='all'):
@@ -371,6 +456,11 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
     Graphs distribution of each variable and its corresponding effect on the
     target feature
     """
+    df = df.copy()
+
+    # Replace NaN temporarily with the string 'nan' for visualization
+    df = df.fillna(value='tmp_nan')
+
     feature_types = _get_feature_types(df)
 
     # Initialize plotted features to all if not provided
@@ -378,17 +468,22 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
         if target_feature:
             plot_vars = [key for key in feature_types.keys()
                          if key != target_feature]
+
+            plot_vars.insert(0, target_feature)
         else:
             plot_vars = feature_types.keys()
 
-    # Calulate plot dimensions
-    if target_feature is not None:
-        row_count = len(plot_vars)-1
+    # Get feature value colors
+    feature_value_colors = \
+        assign_feature_value_colors(df, plot_vars, feature_types, top=top)
 
+    # Calulate plot dimensions
+    row_count = len(plot_vars)
+    if target_feature is not None:
+        # row_count = len(plot_vars)-1
         col_count = 2
     else:
-        row_count = len(plot_vars)
-
+        # row_count = len(plot_vars)
         col_count = 1
 
     # Set general settings for individual subplots
@@ -491,23 +586,88 @@ def inspect_data(df, plot_vars=None, target_feature=None, subplot_kwargs=None,
             # of target feature if on right edge
             if not col_ind:
                 # Graph feature distrubution
-                draw_feature_distribution(ax, df, feature, feature_types,
-                                          text_and_line_color, top=top,
-                                          title=title,
-                                          text_font_size=text_font_size,
-                                          small_text_size=small_text_size)
+                draw_feature_distribution(
+                    ax, df, feature, feature_types,
+                    feature_value_colors, text_and_line_color,
+                    top=top, title=title, text_font_size=text_font_size,
+                    small_text_size=small_text_size
+                    )
+
             else:
-                draw_target_vs_feature(ax, df, feature, target_feature,
-                                       feature_types, feature_type, top=top,
-                                       tick_labels='',
-                                       text_and_line_color=text_and_line_color,
-                                       text_font_size=text_font_size,
-                                       small_text_size=small_text_size)
+                if row_ind:
+                    draw_target_vs_feature(
+                        ax, df, feature, target_feature, feature_types,
+                        feature_value_colors=feature_value_colors, top=top,
+                        tick_labels='',
+                        text_and_line_color=text_and_line_color,
+                        text_font_size=text_font_size,
+                        small_text_size=small_text_size)
+                else:
+                    ax.axis('off')
 
             ax.tick_params(axis=u'both', which=u'both',length=0)
 
     plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                         wspace=None, hspace=0.35)
+
+def draw_target_legend(ax, df, target_feature, feature_value_colors,
+                       legend_marker_size=5, legend_font_size=5):
+    """
+    Draws legend
+    """
+    target_feature_series = df[target_feature]
+
+    sorted_target_feature_counts = \
+        target_feature_series.value_counts(dropna=False).sort_values(
+                                                                ascending=False)
+
+    labels = sorted_target_feature_counts.index.values
+
+    label_count = len(labels)
+
+    target_colors = []
+    for label in labels:
+        color = feature_value_colors[target_feature][label]
+
+        target_colors.append(color)
+
+    # for label_ind in xrange(len(labels)):
+    #
+    #     color = _get_color_val(label_ind, label_count)
+    #
+    #     target_colors.append(color)
+
+    # bar_values = label_by_label.values
+    #
+    # for unique_col_feature_value_ind, unique_col_feature_value \
+    #     in enumerate(unique_col_feature_values):
+    #
+    #     # bar_data = label_by_label[unique_col_feature_value].values
+    #     # bar_values.append(bar_data)
+    #
+    #     color = _get_color_val(
+    #                 unique_col_feature_value_ind,
+    #                 unique_col_feature_value_count)
+    #
+    #
+    #     colors.append([color for x in xrange(bar_values.shape[0])])
+
+    proxies = [create_proxy(color) for color in target_colors]
+
+    custom_legend = (labels, proxies)
+
+    ax.legend(custom_legend[1], custom_legend[0],
+              handlelength=legend_marker_size,
+              handleheight=legend_marker_size,
+              frameon=False, loc='best', fontsize=legend_font_size)
+
+    # plt.setp(plt.gca().get_legend().get_texts(),
+    #          fontsize=legend_font_size)
+
+def create_proxy(color):
+    rect = plt.Rectangle((0,0), 1, 1, color=color)
+
+    return rect
 
 
 def plot_hist(ax, x, hist_kwargs=None, text_and_line_color=None):
@@ -1559,9 +1719,7 @@ def plot_label_versus_label(df,ax,data_feature,hue_feature,output_labels=[],
 
         return step_colors
 
-def _get_color_val(ind, num_series, color_map='viridis'):
-    color_count = num_series
-
+def _get_color_val(color_ind, color_count, color_map='jet'):
     if color_map == 'custom':
         scalar_map = ['gray', 'cyan', 'orange', 'magenta', 'lime', 'red',
                       'purple', 'blue', 'yellow', 'black']
@@ -1572,10 +1730,13 @@ def _get_color_val(ind, num_series, color_map='viridis'):
 
         scalar_map = cmx.ScalarMappable(norm=cNorm, cmap=cmap)
 
-    if not ind:
-        color = 'gray'
+    if color_map != 'custom':
+        if not color_ind:
+            color = 'gray'
+        else:
+            color = scalar_map.to_rgba(color_ind)
     else:
-        color = scalar_map.to_rgba(ind)
+        color = scalar_map[color_ind]
 
     return color
 
