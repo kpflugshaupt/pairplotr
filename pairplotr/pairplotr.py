@@ -28,7 +28,7 @@ class Inspector(object):
 
         self.feature_numerical_flags = None
 
-        self.feature_colors = None
+        self.feature_colors = {}
 
         # Number of top feature values to display to cut down on processing
         # time
