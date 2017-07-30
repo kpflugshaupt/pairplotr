@@ -523,7 +523,7 @@ class Inspector(object):
 
     def inspect_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, top='all',
-                     hist_kwargs=None, grid_kwargs=None):
+                     hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -638,59 +638,6 @@ class Inspector(object):
                 # Fill row with feature distribution if on left edge and response
                 # of target feature if on right edge
                 if not col_ind:
-                    """
-                    color_by_value = False
-                    if target_feature is not None:
-                        if feature == target_feature \
-                            and not target_is_numerical:
-
-                            color_by_value = True
-                        elif feature != target_feature \
-                            and target_is_numerical \
-                            and not feature_is_numerical:
-
-                            color_by_value = True
-                        else:
-                            pass
-
-
-                    color_by_value = False
-                    if target_feature is not None:
-                        if target_is_numerical:
-                            if not feature_is_numerical:
-                                color_by_value = True
-                        else:
-                            pass
-
-                    """
-                    # # Choose whether to color the current feature distribution by value
-                    # if target_feature is not None:
-                    #     if target_is_numerical:
-                    #         # Don't color target but color categorical features
-                    #         if feature == target_feature:
-                    #             color_by_value = False
-                    #         else:
-                    #             color_by_value = True
-                    #     else:
-                    #         # Color target but not the features
-                    #         if feature == target_feature:
-                    #             color_by_value = True
-                    #         else:
-                    #             color_by_value = False
-                    # else:
-                    #     color_by_value = False
-                    #
-                    # if feature_is_numerical:
-                    #     # Never color numerical features
-                    #     color_by_value = False
-                    # else:
-                    #     # Color categorical features only if they are target
-                    #     # feature or if target feature is cate
-                    #     if target_feature is not None:
-                    #         pass
-                    #     else:
-                    #         color_by_value = False
-
                     # Graph feature distrubution
                     self._draw_feature_distribution(
                         ax, feature, top=top, hist_kwargs=hist_kwargs,
@@ -706,16 +653,9 @@ class Inspector(object):
                             ax, feature, target_feature, top=top,
                             text_and_line_color=text_and_line_color,
                             line_width = line_width, grid_kwargs=grid_kwargs,
-                            hist_kwargs=hist_kwargs
+                            hist_kwargs=hist_kwargs,
+                            scatter_kwargs=scatter_kwargs
                         )
-
-                        # draw_target_vs_feature(
-                        #     ax, df, feature, target_feature, feature_types,
-                        #     feature_value_colors=feature_value_colors, top=top,
-                        #     tick_labels='',
-                        #     text_and_line_color=text_and_line_color,
-                        #     text_font_size=text_font_size,
-                        #     small_text_size=small_text_size)
                     else:
                         ax.axis('off')
 
@@ -739,9 +679,45 @@ class Inspector(object):
         plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=None, hspace=0.35)
 
+    def _draw_numerical_vs_numerical(self, ax, feature, target_feature,
+                                     scatter_kwargs=None):
+        """
+        Draws scatter plot of target_feature versus feature
+        """
+        default_scatter_kwargs = dict(
+            s = 100.0,    # scalar or array_like, shape (n, ), optional
+            c = 'grey', # color, sequence, or sequence of color, optional,
+                        # default: 'b'
+            marker = 'o',   # MarkerStyle, optional, default: 'o'
+            cmap = None,    # Colormap, optional, default: None
+            norm = None,    # Normalize, optional, default: None. A Normalize
+                            # instance is used to scale luminance data to 0, 1.
+                            # norm is only used if c is an array of floats.
+                            # If None, use the default normalize().
+
+            alpha = 0.6,   # scalar, optional, default: None. The alpha
+                            # blending value, between 0 (transparent) and
+                            # 1 (opaque)
+            linewidths = 1.0,  # scalar or array_like, optional, default: None
+                                # If None, defaults to (lines.linewidth,).
+            edgecolors = 'white',  # color or sequence of color, optional,
+                                # default: None. If None, defaults to 'face'.
+                                # If 'face', the edge color will always be the
+                                # same as the face color. If it is 'none',
+                                # the patch boundary will not be drawn. For
+                                # non-filled markers, the edgecolors kwarg is
+                                # ignored and forced to 'face' internally.
+        )
+
+        df = self.df
+
+        df.plot(kind='scatter', ax=ax, x=feature, y=target_feature,
+                **default_scatter_kwargs)
+
     def _draw_target_vs_feature(self, ax, feature, target_feature, top='all',
                                 text_and_line_color='black', line_width=1.0,
-                                grid_kwargs=None, hist_kwargs=None):
+                                grid_kwargs=None, hist_kwargs=None,
+                                scatter_kwargs=None):
         """
         """
         feature_numerical_flags = self.feature_numerical_flags
@@ -752,7 +728,19 @@ class Inspector(object):
         if target_is_numerical:
             if feature_is_numerical:
                 # Draw uncolored scatter plot
-                pass
+                self._draw_numerical_vs_numerical(ax, feature, target_feature,
+                                                  scatter_kwargs=scatter_kwargs)
+
+                # Draw only bottom spine
+                visible_spines = ['bottom']
+                self._set_visible_spines(ax, visible_spines,
+                                         text_and_line_color=text_and_line_color,
+                                         line_width=line_width)
+
+                self._set_grid_lines(ax, 'y', grid_kwargs=grid_kwargs)
+
+                ax.xaxis.label.set_visible(False)
+                ax.yaxis.label.set_visible(False)
             else:
                 # Draw target histograms colored by feature category values
                 self._draw_categorical_vs_numerical(ax, target_feature, feature,
