@@ -652,7 +652,9 @@ class Inspector(object):
                 else:
                     if row_ind:
                         self._draw_target_vs_feature(
-                            ax, feature, target_feature, top=top
+                            ax, feature, target_feature, top=top,
+                            text_and_line_color=text_and_line_color,
+                            line_width = line_width, grid_kwargs=grid_kwargs
                         )
 
                         # draw_target_vs_feature(
@@ -685,7 +687,9 @@ class Inspector(object):
         plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=None, hspace=0.35)
 
-    def _draw_target_vs_feature(self, ax, feature, target_feature, top='all'):
+    def _draw_target_vs_feature(self, ax, feature, target_feature, top='all',
+                                text_and_line_color='black', line_width=1.0,
+                                grid_kwargs=None):
         """
         """
         feature_numerical_flags = self.feature_numerical_flags
@@ -704,7 +708,10 @@ class Inspector(object):
             if feature_is_numerical:
                 # Draw feature histograms colored by target category values
                 # Draw uncolored scatter plot
-                self._draw_categorical_vs_numerical(ax, feature, hue_feature)
+                hue_feature = target_feature
+
+                self._draw_categorical_vs_numerical(ax, feature, hue_feature,
+                                                    top=top)
             else:
                 # Draw stacked horizontal bar chart of feature distribution
                 # colored by target category values
@@ -713,10 +720,19 @@ class Inspector(object):
                 self._draw_categorical_vs_categorical(ax, feature, hue_feature,
                                                       top=top)
 
-    def _draw_categorical_vs_numerical(self, ax, feature, hue_feature):
+                # Draw only bottom spine
+                visible_spines = ['left']
+                self._set_visible_spines(ax, visible_spines,
+                                         text_and_line_color=text_and_line_color,
+                                         line_width=line_width)
+
+                self._set_grid_lines(ax, 'x', grid_kwargs=grid_kwargs)
+
+
+    def _draw_categorical_vs_numerical(self, ax, feature, hue_feature, top='all'):
         """
         """
-        pass
+
 
     def _draw_categorical_vs_categorical(self, ax, feature, hue_feature,
                                          top='all'):
@@ -770,7 +786,7 @@ class Inspector(object):
 
                 colors[hue_value_ind, feature_value_ind] = color
 
-        tick_labels = feature_values
+        tick_labels = ''
         bar_values = counts
         bar_colors = colors
 
