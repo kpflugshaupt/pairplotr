@@ -34,6 +34,9 @@ class Inspector(object):
         # time
         self.top = None
 
+        # Fill NaN values with fake string
+        self.df.fillna(value='tmp_nan', inplace=True)
+
         # Obtain sorted value count dataframes for each feature
         self._count_feature_values()
 
@@ -255,215 +258,6 @@ class Inspector(object):
 
         return default_kwargs
 
-    def inspect_data(self, plot_vars=None, target_feature=None,
-                     subplot_kwargs=None, fig_kwargs=None, top='all',
-                     hist_kwargs=None, grid_kwargs=None):
-        """
-        Plots data distributions (histogram for numerical and horizontal bar
-        chart for non-numerical) for each feature alongside the response of
-        target feature (if specified)
-        """
-
-        df = self.df
-
-        feature_types = self.feature_types
-
-        numerical_flags = self.feature_numerical_flags
-
-        # Initialize plotted features to all if not provided
-        if plot_vars is None:
-            features = feature_types.keys()
-            if target_feature:
-                plot_vars = [key for key in features
-                             if key != target_feature]
-
-                plot_vars.insert(0, target_feature)
-            else:
-                plot_vars = features
-
-        # Get target feature value colors
-        if target_feature:
-            target_is_numerical = numerical_flags[target_feature]
-
-            if not target_is_numerical:
-                self._set_feature_value_colors([target_feature], top=top)
-            else:
-                self._set_feature_value_colors(plot_vars, top=top)
-
-        # Calulate plot dimensions
-        row_count = len(plot_vars)
-        if target_feature is not None:
-            col_count = 2
-        else:
-            col_count = 1
-
-        # Set general settings for individual subplots
-        default_subplot_kwargs = self._get_default_kwargs('subplot')
-
-        # Override default subplot kwargs if provided by user
-        if subplot_kwargs is not None:
-            for key, value in subplot_kwargs.iteritems():
-                default_subplot_kwargs[key] = value
-
-        # Set default figure parameters
-        default_fig_kwargs = self._get_default_kwargs('fig',
-                                                      row_count=row_count,
-                                                      col_count=col_count)
-
-        # Override default figure kwargs if provided by user
-        if fig_kwargs is not None:
-            for key, value in fig_kwargs.iteritems():
-                default_fig_kwargs[key] = value
-
-        # Set default text parameters
-        text_font_size = 12
-        tick_label_size = text_font_size-3
-
-        text_properties = {
-            'tick_labels': {
-                'family': 'sans-serif',
-                'weight': 'normal',
-                'size': tick_label_size,
-
-            }
-        }
-
-        small_text_size = 10
-
-        # Set text and line color
-        grayLevel = 0.6
-        text_and_line_color = (0.0, 0.0, 0.0, grayLevel)
-
-        # Set line properties
-        line_width = 1.0
-
-        # Set padding of axis labels so they don't overlap with tick-labels
-        label_padding = 0.05
-
-        # Initialize plot (Kwarg 'squeeze' used to make output a matrix, even if
-        # there is only one plot. This makes indexing more consistent.)
-        fig, sub_axes = plt.subplots(**default_fig_kwargs)
-
-        # Get counts of all features
-        df_counts = df.count()
-
-        # Fill figure cells
-        for row_ind in xrange(row_count):
-            feature = plot_vars[row_ind]
-
-            feature_type = feature_types[feature]
-
-            feature_is_numerical = self.feature_numerical_flags[feature]
-
-            non_null_count = df_counts[feature]
-
-            # Derive feature distribution plot title
-            title = '%s:    (%d/%d)' % (feature, non_null_count, len(df))
-
-            for col_ind in xrange(col_count):
-                # Obtain current axis
-                ax = sub_axes[row_ind, col_ind]
-
-                # Fill row with feature distribution if on left edge and response
-                # of target feature if on right edge
-                if not col_ind:
-                    """
-                    color_by_value = False
-                    if target_feature is not None:
-                        if feature == target_feature \
-                            and not target_is_numerical:
-
-                            color_by_value = True
-                        elif feature != target_feature \
-                            and target_is_numerical \
-                            and not feature_is_numerical:
-
-                            color_by_value = True
-                        else:
-                            pass
-
-
-                    color_by_value = False
-                    if target_feature is not None:
-                        if target_is_numerical:
-                            if not feature_is_numerical:
-                                color_by_value = True
-                        else:
-                            pass
-
-                    """
-                    # Choose whether to color the current feature distribution by value
-                    if target_feature is not None:
-                        if target_is_numerical:
-                            # Don't color target but color categorical features
-                            if feature == target_feature:
-                                color_by_value = False
-                            else:
-                                color_by_value = True
-                        else:
-                            # Color target but not the features
-                            if feature == target_feature:
-                                color_by_value = True
-                            else:
-                                color_by_value = False
-                    else:
-                        color_by_value = False
-
-                    if feature_is_numerical:
-                        # Never color numerical features
-                        color_by_value = False
-                    else:
-                        # Color categorical features only if they are target
-                        # feature or if target feature is cate
-                        if target_feature is not None:
-                            pass
-                        else:
-                            color_by_value = False
-
-                    # Graph feature distrubution
-                    self._draw_feature_distribution(
-                        ax, feature, top=top, hist_kwargs=hist_kwargs,
-                        grid_kwargs=grid_kwargs, line_width=line_width,
-                        text_and_line_color=text_and_line_color
-                    )
-
-                    ax.set_title(title, color=text_and_line_color,
-                                 size=text_font_size)
-                else:
-                    if row_ind:
-                        ax.axis('off')
-                        # self._draw_target_vs_feature(ax)
-
-                        # draw_target_vs_feature(
-                        #     ax, df, feature, target_feature, feature_types,
-                        #     feature_value_colors=feature_value_colors, top=top,
-                        #     tick_labels='',
-                        #     text_and_line_color=text_and_line_color,
-                        #     text_font_size=text_font_size,
-                        #     small_text_size=small_text_size)
-                    else:
-                        ax.axis('off')
-
-                # Remove ticks
-                ax.tick_params(axis=u'both', which=u'both',length=0)
-
-                # Set x-tick label sizes and colors
-                for x_tick in ax.xaxis.get_major_ticks():
-                    x_tick.label.set_fontsize(small_text_size)
-                    x_tick.label.set_color(text_and_line_color)
-
-                # Set x-tick label sizes and colors
-                for y_tick in ax.yaxis.get_major_ticks():
-                    y_tick.label.set_fontsize(small_text_size)
-                    y_tick.label.set_color(text_and_line_color)
-
-                # Remove ticks but not labels
-                ax.tick_params(axis=u'both', which=u'both',length=0)
-
-
-        plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
-                            wspace=None, hspace=0.35)
-
     def _set_visible_spines(self, ax, visible_spines,
                             text_and_line_color='black',
                             line_width=1.0):
@@ -676,396 +470,363 @@ class Inspector(object):
 
         ax.hist(x, **default_hist_kwargs)
 
-def inspect_data(plot_vars=None, target_feature=None, subplot_kwargs=None,
-                 fig_kwargs=None, top='all'):
-    """
-    Graphs distribution of each variable and its corresponding effect on the
-    target feature
-    """
-    # Replace NaN temporarily with the string 'nan' for visualization
-    df = df.fillna(value='tmp_nan')
+    def inspect_data(self, plot_vars=None, target_feature=None,
+                     subplot_kwargs=None, fig_kwargs=None, top='all',
+                     hist_kwargs=None, grid_kwargs=None):
+        """
+        Plots data distributions (histogram for numerical and horizontal bar
+        chart for non-numerical) for each feature alongside the response of
+        target feature (if specified)
+        """
+        df = self.df
 
+        feature_types = self.feature_types
 
-    feature_types = _get_feature_types(df)
+        numerical_flags = self.feature_numerical_flags
 
-    # Initialize plotted features to all if not provided
-    if plot_vars is None:
+        # Initialize plotted features to all if not provided
+        if plot_vars is None:
+            features = feature_types.keys()
+            if target_feature:
+                plot_vars = [key for key in features
+                             if key != target_feature]
+
+                plot_vars.insert(0, target_feature)
+            else:
+                plot_vars = features
+
+        # Get target feature value colors
         if target_feature:
-            plot_vars = [key for key in feature_types.keys()
-                         if key != target_feature]
+            target_is_numerical = numerical_flags[target_feature]
 
-            plot_vars.insert(0, target_feature)
+            if not target_is_numerical:
+                self._set_feature_value_colors([target_feature], top=top)
+            else:
+                self._set_feature_value_colors(plot_vars, top=top)
+
+        # Calulate plot dimensions
+        row_count = len(plot_vars)
+        if target_feature is not None:
+            col_count = 2
         else:
-            plot_vars = feature_types.keys()
+            col_count = 1
 
-    # Get feature value colors
-    feature_value_colors = \
-        assign_feature_value_colors(df, plot_vars, feature_types, top=top)
+        # Set general settings for individual subplots
+        default_subplot_kwargs = self._get_default_kwargs('subplot')
 
-    # Calulate plot dimensions
-    row_count = len(plot_vars)
-    if target_feature is not None:
-        # row_count = len(plot_vars)-1
-        col_count = 2
-    else:
-        # row_count = len(plot_vars)
-        col_count = 1
+        # Override default subplot kwargs if provided by user
+        if subplot_kwargs is not None:
+            for key, value in subplot_kwargs.iteritems():
+                default_subplot_kwargs[key] = value
 
-    # Set general settings for individual subplots
-    default_subplot_kwargs = dict(
-        title = '',
-        facecolor = 'white', # fc overrides this so it's not set
-        alpha =	1.0, # float (0.0 transparent through 1.0 opaque)
-        frame_on = True, # [ True | False ]
-        visible = True, # [True | False]
-        xlabel = '',
-        xlim = None, #Use with autoscalex_on set to False to constrain subplots
-        autoscalex_on = True, # Set to False and specify xlim to constrain subplots
-        xmargin = 0.05, # Percent of range of x data to use to pad around x-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on both left and right. Seems default is 0.05)
-        xscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
-        # xticklabels = [], # Can set this externally if desired
-        # xticks = [], # Can set this externally if desired
-        ylabel = '',
-        # ylim = None, # Must be set externally, unlike xlim and autoscalex_on, for similar behavior
-        autoscaley_on = True,
-        ymargin = 0.05, # Percent of range of y data to use to pad above the y-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on above. Seems default is 0.05)
-        yscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
-        # yticklabels = [], # Can set this externally if desired
-        # yticks = [], # Can set this externally if desired
-        zorder = None, # Order relative to other elements
-    )
+        # Set default figure parameters
+        default_fig_kwargs = self._get_default_kwargs('fig',
+                                                      row_count=row_count,
+                                                      col_count=col_count)
 
-    # Override default subplot kwargs if provided by user
-    if subplot_kwargs is not None:
-        for key, value in subplot_kwargs.iteritems():
-            default_subplot_kwargs[key] = value
+        # Override default figure kwargs if provided by user
+        if fig_kwargs is not None:
+            for key, value in fig_kwargs.iteritems():
+                default_fig_kwargs[key] = value
 
-    # Set default figure parameters
-    default_fig_kwargs = dict(
-        # Figure kwargs
-        nrows=row_count,
-        ncols=col_count,
-        sharex=False,
-        sharey=False,
-        squeeze=False,
-        gridspec_kw=None,
-        # Figure kwargs
-        figsize=(5, 100),
-        facecolor='white',
-        # Subplots kwargs
-        subplot_kw = default_subplot_kwargs,
-    )
+        # Set default text parameters
+        text_font_size = 12
+        tick_label_size = text_font_size-3
 
-    # Override default figure kwargs if provided by user
-    if fig_kwargs is not None:
-        for key, value in fig_kwargs.iteritems():
-            default_fig_kwargs[key] = value
+        text_properties = {
+            'tick_labels': {
+                'family': 'sans-serif',
+                'weight': 'normal',
+                'size': tick_label_size,
 
-    # Set default text parameters
-    text_font_size = 12
-    tick_label_size = text_font_size-3
-
-    text_properties = {
-        'tick_labels': {
-            'family': 'sans-serif',
-            'weight': 'normal',
-            'size': tick_label_size,
-
+            }
         }
-    }
 
-    small_text_size = 10
+        small_text_size = 10
 
-    # Set text and line color
-    grayLevel = 0.4
-    text_and_line_color = (0.0, 0.0, 0.0, grayLevel)
+        # Set text and line color
+        grayLevel = 0.6
+        text_and_line_color = (0.0, 0.0, 0.0, grayLevel)
 
-    # Set grid_kwargs
-    default_grid_kwargs = dict(
-        color = text_and_line_color
-    )
+        # Set line properties
+        line_width = 1.0
 
-    # Override with provided grid kwargs
-    if grid_kwargs is not None:
-        for key, item in grid_kwargs.iteritems():
-            default_grid_kwargs[key] = item
+        # Set padding of axis labels so they don't overlap with tick-labels
+        label_padding = 0.05
 
-    # Set padding of axis labels so they don't overlap with tick-labels
-    label_padding = 0.05
+        # Initialize plot (Kwarg 'squeeze' used to make output a matrix, even if
+        # there is only one plot. This makes indexing more consistent.)
+        fig, sub_axes = plt.subplots(**default_fig_kwargs)
 
-    # Initialize plot (Kwarg 'squeeze' used to make output a matrix, even if
-    # there is only one plot. This makes indexing more consistent.)
-    fig, sub_axes = plt.subplots(**default_fig_kwargs)
+        # Get counts of all features
+        df_counts = df.count()
 
-    # Get counts of all features
-    df_counts = df.count()
+        df_row_count = len(df)
 
-    # Fill figure cells
-    for row_ind in xrange(row_count):
-        feature = plot_vars[row_ind]
+        # Fill figure cells
+        for row_ind in xrange(row_count):
+            feature = plot_vars[row_ind]
 
-        feature_type = feature_types[feature]
+            feature_type = feature_types[feature]
 
-        feature_series = df[feature]
+            feature_is_numerical = self.feature_numerical_flags[feature]
 
-        non_null_count = df_counts[feature]
+            if 'tmp_nan' in self.feature_value_counts[feature]:
+                non_null_count = \
+                    df_row_count-self.feature_value_counts[feature]['tmp_nan']
+            else:
+                non_null_count = df_row_count
 
-        # Derive feature distribution plot title
-        title = '%s:    (%d/%d)' % (feature, non_null_count, len(df))
+            # Derive feature distribution plot title
+            title = '%s:    (%d/%d)' % (feature, non_null_count, df_row_count)
 
-        for col_ind in xrange(col_count):
-            # Obtain current axis
-            ax = sub_axes[row_ind, col_ind]
+            for col_ind in xrange(col_count):
+                # Obtain current axis
+                ax = sub_axes[row_ind, col_ind]
 
-            # Fill row with feature distribution if on left edge and response
-            # of target feature if on right edge
-            if not col_ind:
-                # Graph feature distrubution
-                draw_feature_distribution(
-                    ax, df, feature, feature_types,
-                    feature_value_colors, text_and_line_color,
-                    top=top, title=title, text_font_size=text_font_size,
-                    small_text_size=small_text_size
+                # Fill row with feature distribution if on left edge and response
+                # of target feature if on right edge
+                if not col_ind:
+                    """
+                    color_by_value = False
+                    if target_feature is not None:
+                        if feature == target_feature \
+                            and not target_is_numerical:
+
+                            color_by_value = True
+                        elif feature != target_feature \
+                            and target_is_numerical \
+                            and not feature_is_numerical:
+
+                            color_by_value = True
+                        else:
+                            pass
+
+
+                    color_by_value = False
+                    if target_feature is not None:
+                        if target_is_numerical:
+                            if not feature_is_numerical:
+                                color_by_value = True
+                        else:
+                            pass
+
+                    """
+                    # # Choose whether to color the current feature distribution by value
+                    # if target_feature is not None:
+                    #     if target_is_numerical:
+                    #         # Don't color target but color categorical features
+                    #         if feature == target_feature:
+                    #             color_by_value = False
+                    #         else:
+                    #             color_by_value = True
+                    #     else:
+                    #         # Color target but not the features
+                    #         if feature == target_feature:
+                    #             color_by_value = True
+                    #         else:
+                    #             color_by_value = False
+                    # else:
+                    #     color_by_value = False
+                    #
+                    # if feature_is_numerical:
+                    #     # Never color numerical features
+                    #     color_by_value = False
+                    # else:
+                    #     # Color categorical features only if they are target
+                    #     # feature or if target feature is cate
+                    #     if target_feature is not None:
+                    #         pass
+                    #     else:
+                    #         color_by_value = False
+
+                    # Graph feature distrubution
+                    self._draw_feature_distribution(
+                        ax, feature, top=top, hist_kwargs=hist_kwargs,
+                        grid_kwargs=grid_kwargs, line_width=line_width,
+                        text_and_line_color=text_and_line_color
                     )
 
-            else:
-                if row_ind:
-                    draw_target_vs_feature(
-                        ax, df, feature, target_feature, feature_types,
-                        feature_value_colors=feature_value_colors, top=top,
-                        tick_labels='',
-                        text_and_line_color=text_and_line_color,
-                        text_font_size=text_font_size,
-                        small_text_size=small_text_size)
+                    ax.set_title(title, color=text_and_line_color,
+                                 size=text_font_size)
                 else:
-                    ax.axis('off')
+                    if row_ind:
+                        self._draw_target_vs_feature(
+                            ax, feature, target_feature, top=top
+                        )
 
-            ax.tick_params(axis=u'both', which=u'both',length=0)
+                        # draw_target_vs_feature(
+                        #     ax, df, feature, target_feature, feature_types,
+                        #     feature_value_colors=feature_value_colors, top=top,
+                        #     tick_labels='',
+                        #     text_and_line_color=text_and_line_color,
+                        #     text_font_size=text_font_size,
+                        #     small_text_size=small_text_size)
+                    else:
+                        ax.axis('off')
 
-    plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
-                        wspace=None, hspace=0.35)
+                # Remove ticks
+                ax.tick_params(axis=u'both', which=u'both',length=0)
 
+                # Set x-tick label sizes and colors
+                for x_tick in ax.xaxis.get_major_ticks():
+                    x_tick.label.set_fontsize(small_text_size)
+                    x_tick.label.set_color(text_and_line_color)
 
-    # def _get_color_map(self, color_count):
-    #     """
-    #     """
-    #
-    #     if color_map == 'custom':
-    #         indexible_map = ['gray', 'cyan', 'orange', 'magenta', 'lime',
-    #                          'red', 'purple', 'blue', 'yellow', 'black']
-    #     else:
-    #         cmap = mpl_plt.get_cmap(color_map)
-    #
-    #         scalar_map = cmx.ScalarMappable(
-    #             norm=mpl_colors.Normalize(vmin=0, vmax=color_count-1),
-    #             cmap=cmap)
-    #
-    #         indexible_map = scalar_map.to_rgba(color_ind)
+                # Set x-tick label sizes and colors
+                for y_tick in ax.yaxis.get_major_ticks():
+                    y_tick.label.set_fontsize(small_text_size)
+                    y_tick.label.set_color(text_and_line_color)
 
-# def plot_bar(ax, tick_labels, bar_values, color=None, title='',
-#              text_and_line_color='black', text_font_size=12,
-#              small_text_size=9):
-#     """
-#     """
-#     # # Derive bar positions
-#     # bar_positions = np.arange(len(bar_values))
-#     #
-#     # # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
-#     # bar_kwargs = dict(
-#     #     height=0.8,
-#     #     left=None,
-#     #     color=color,
-#     #     tick_label=tick_labels,
-#     #     zorder=1000,
-#     # )
-#
-#     if len(bar_values.shape) == 1:
-#         bar_values = bar_values.reshape(-1, 1)
-#
-#         color = [color]
-#
-#     bar_positions = np.arange(bar_values.shape[0])[::-1]
-#
-#     # Initialize bottom bar buffer
-#     bottom_bar_buffer = np.zeros(bar_values.shape[0])
-#
-#     # Plot stacked bars for row feature data corresponding to each column feature value
-#     for data_ind in xrange(bar_values.shape[1]):
-#         data = bar_values[:,data_ind]
-#
-#         # Add previous values to current buffer
-#         if data_ind:
-#             bottom_bar_buffer = bottom_bar_buffer + bar_values[:, data_ind-1]
-#
-#         current_colors = color[data_ind]
-#
-#         # Set series-specific parameters
-#         # Set lower value to start bars from
-#         bar_kwargs = dict(
-#             height=0.8,
-#             left=bottom_bar_buffer,
-#             color=current_colors,
-#             tick_label=tick_labels,
-#             zorder=1000,
-#             edgecolor=current_colors
-#         )
-#
-#         ax.barh(bar_positions, data, **bar_kwargs)
-#
-#     # Set left frame attributes
-#     ax.spines['left'].set_linewidth(1.0)
-#     ax.spines['left'].set_color(text_and_line_color)
-#
-#     # Remove all but bottom frame line
-#     ax.spines['right'].set_visible(False)
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['bottom'].set_visible(False)
-#
-#     # Remove ticks but not labels
-#     ax.tick_params(axis=u'both', which=u'both',length=0)
-#
-#     ax.xaxis.grid(True, linestyle='--', linewidth=1)
-#
-#     ax.set_title(title, color=text_and_line_color, size=text_font_size)
-#
-#     # Set y-tick label sizes and colors
-#     for x_tick in ax.xaxis.get_major_ticks():
-#         x_tick.label.set_fontsize(small_text_size)
-#         x_tick.label.set_color(text_and_line_color)
-#
-#     # Set y-tick label sizes and colors
-#     for y_tick in ax.yaxis.get_major_ticks():
-#         y_tick.label.set_fontsize(small_text_size)
-#         y_tick.label.set_color(text_and_line_color)
-# def assign_feature_value_colors(df, feature_list, feature_types, top='all'):
-#     """
-#     """
-#     feature_value_colors = {}
-#
-#     for feature in feature_list:
-#         # Get feature type
-#         feature_type = feature_types[feature]
-#
-#         # Initialize new features
-#         if feature in feature_value_colors:
-#             raise Exception("Feature %s is duplicated"%(feature))
-#         else:
-#             feature_value_colors[feature] = {}
-#
-#         feature_is_numerical = ('categorical' not in feature_type \
-#                              and feature_type != 'id')
-#
-#         # Get feature value order, value counts, and color for each value
-#         if not feature_is_numerical:
-#             # Get feature value counts and sort in ascending order by count
-#             if top=='all':
-#                 sorted_value_count_df = \
-#                     df[feature].value_counts(dropna=False).sort_values(
-#                                                                 ascending=True)
-#             else:
-#                 sorted_value_count_df = \
-#                     df[feature].value_counts(dropna=False).sort_values(
-#                                                 ascending=True).nlargest(top)
-#
-#
-#             # Get feature values
-#             sorted_feature_values = list(sorted_value_count_df.index.values)
-#
-#             # Get number of feature values
-#             feature_value_count = len(sorted_feature_values)
-#
-#             for feature_value_ind, feature_value in \
-#                 enumerate(list(reversed(sorted_feature_values))):
-#                 # feature_value_colors[feature][feature_value] = \
-#                 #     scalar_map.to_rgba(feature_value_ind)
-#
-#
-#                 feature_value_colors[feature][feature_value] = \
-#                     _get_color_val(feature_value_ind, feature_value_count)
-#
-#
-#
-#
-#     return feature_value_colors
+                # Remove ticks but not labels
+                ax.tick_params(axis=u'both', which=u'both',length=0)
 
 
-#
-# def plot_bar(ax, tick_labels, bar_values, color=None, title='',
-#              text_and_line_color='black', text_font_size=12,
-#              small_text_size=9):
-#     """
-#     """
-#     # # Derive bar positions
-#     # bar_positions = np.arange(len(bar_values))
-#     #
-#     # # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
-#     # bar_kwargs = dict(
-#     #     height=0.8,
-#     #     left=None,
-#     #     color=color,
-#     #     tick_label=tick_labels,
-#     #     zorder=1000,
-#     # )
-#
-#     if len(bar_values.shape) == 1:
-#         bar_values = bar_values.reshape(-1, 1)
-#
-#         color = [color]
-#
-#     bar_positions = np.arange(bar_values.shape[0])[::-1]
-#
-#     # Initialize bottom bar buffer
-#     bottom_bar_buffer = np.zeros(bar_values.shape[0])
-#
-#     # Plot stacked bars for row feature data corresponding to each column feature value
-#     for data_ind in xrange(bar_values.shape[1]):
-#         data = bar_values[:,data_ind]
-#
-#         # Add previous values to current buffer
-#         if data_ind:
-#             bottom_bar_buffer = bottom_bar_buffer + bar_values[:, data_ind-1]
-#
-#         current_colors = color[data_ind]
-#
-#         # Set series-specific parameters
-#         # Set lower value to start bars from
-#         bar_kwargs = dict(
-#             height=0.8,
-#             left=bottom_bar_buffer,
-#             color=current_colors,
-#             tick_label=tick_labels,
-#             zorder=1000,
-#             edgecolor=current_colors
-#         )
-#
-#         ax.barh(bar_positions, data, **bar_kwargs)
-#
-#     # Set left frame attributes
-#     ax.spines['left'].set_linewidth(1.0)
-#     ax.spines['left'].set_color(text_and_line_color)
-#
-#     # Remove all but bottom frame line
-#     ax.spines['right'].set_visible(False)
-#     ax.spines['top'].set_visible(False)
-#     ax.spines['bottom'].set_visible(False)
-#
-#     # Remove ticks but not labels
-#     ax.tick_params(axis=u'both', which=u'both',length=0)
-#
-#     ax.xaxis.grid(True, linestyle='--', linewidth=1)
-#
-#     ax.set_title(title, color=text_and_line_color, size=text_font_size)
-#
-#     # Set y-tick label sizes and colors
-#     for x_tick in ax.xaxis.get_major_ticks():
-#         x_tick.label.set_fontsize(small_text_size)
-#         x_tick.label.set_color(text_and_line_color)
-#
-#     # Set y-tick label sizes and colors
-#     for y_tick in ax.yaxis.get_major_ticks():
-#         y_tick.label.set_fontsize(small_text_size)
-#         y_tick.label.set_color(text_and_line_color)
-#
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
+                            wspace=None, hspace=0.35)
+
+    def _draw_target_vs_feature(self, ax, feature, target_feature, top='all'):
+        """
+        """
+        feature_numerical_flags = self.feature_numerical_flags
+
+        feature_is_numerical = feature_numerical_flags[feature]
+        target_is_numerical = feature_numerical_flags[target_feature]
+
+        if target_is_numerical:
+            if feature_is_numerical:
+                # Draw uncolored scatter plot
+                pass
+            else:
+                # Draw target histograms colored by feature category values
+                pass
+        else:
+            if feature_is_numerical:
+                # Draw feature histograms colored by target category values
+                # Draw uncolored scatter plot
+                self._draw_categorical_vs_numerical(ax, feature, hue_feature)
+            else:
+                # Draw stacked horizontal bar chart of feature distribution
+                # colored by target category values
+                hue_feature = target_feature
+
+                self._draw_categorical_vs_categorical(ax, feature, hue_feature,
+                                                      top=top)
+
+    def _draw_categorical_vs_numerical(self, ax, feature, hue_feature):
+        """
+        """
+        pass
+
+    def _draw_categorical_vs_categorical(self, ax, feature, hue_feature,
+                                         top='all'):
+        """
+        Draws stacked horizontal bar chart of categorical feature data colored
+        by the values of the hue feature.
+        """
+        df = self.df
+
+        hue_value_colors = self.feature_colors[hue_feature]
+
+        value_counts = self.feature_value_counts[feature]
+
+        if top == 'all':
+            trimmed_value_counts = value_counts
+        else:
+            trimmed_value_counts = value_counts.nlargest(top)
+
+        feature_values = trimmed_value_counts.index.values
+
+        hue_feature_values = self.feature_value_counts[hue_feature].index.values
+
+        counts = np.zeros([len(hue_feature_values), len(feature_values)])
+        colors = np.zeros([len(hue_feature_values), len(feature_values)],
+                          dtype=object)
+
+        for feature_value_ind, feature_value in enumerate(feature_values):
+            hue_data_for_feature_value = \
+                df[hue_feature][df[feature] == feature_value]
+
+            hue_counts_for_feature_value = \
+                hue_data_for_feature_value\
+                    .value_counts(dropna=False).sort_values(ascending=False)
+
+            found_hue_features = hue_counts_for_feature_value.index.values
+
+            missing_hue_values = set(hue_feature_values)-set(found_hue_features)
+
+            for missing_hue_value in missing_hue_values:
+                hue_counts_for_feature_value.loc[missing_hue_value] = 0
+
+            hue_values = hue_counts_for_feature_value.index.values
+            hue_counts = hue_counts_for_feature_value.values
+
+            for hue_value_ind, hue_value in enumerate(hue_values):
+                hue_count = hue_counts[hue_value_ind]
+
+                counts[hue_value_ind, feature_value_ind] = hue_count
+
+                color = hue_value_colors[hue_value]
+
+                colors[hue_value_ind, feature_value_ind] = color
+
+        tick_labels = feature_values
+        bar_values = counts
+        bar_colors = colors
+
+        self._draw_bar(ax, tick_labels, bar_values.T, bar_colors=bar_colors)
+
+
+
+        # self._draw_bar(ax, tick_labels, bar_values.T, color=colors, title='',
+        #          text_font_size=text_font_size,
+        #          text_and_line_color=text_and_line_color,
+        #          small_text_size=small_text_size)
+
+            # for hue_value in hue_counts_for_feature_value.index.values:
+            #     hue_count = hue_counts_for_feature_value.loc[hue_value]
+            #
+            #     print hue_value, hue_count
+
+            # for target_value_count_ind, target_value_count in enumerate()
+            # for target_value_count_ind, target_value_count in enumerate(target_value_counts):
+            #     counts[target_value_count_ind, feature_value_ind] = target_value_count
+            #
+            #     target_value = target_values[target_value_count_ind]
+            #
+            #     color = feature_value_colors[target_feature][target_value]
+            #
+            #     colors[target_value_count_ind, feature_value_ind] = color
+
+
+
+
+
+
+
+        #
+        # for hue_feature_value in hue_feature_values:
+        #     target_value_mask = df[hue_feature]==hue_feature_value
+        #
+        #     current_feature_values = df[feature][target_value_mask]
+        #
+        #     if top == 'all':
+        #         trimmed_feature_values_df = \
+        #             current_feature_values\
+        #                 .value_counts(dropna=False).sort_values(ascending=True)
+        #     else:
+        #         trimmed_feature_values_df = \
+        #             current_feature_values\
+        #                 .value_counts(dropna=False)\
+        #                 .sort_values(ascending=True).nlargest(top)
+        #
+        #     print '\t', hue_feature_value
+        #     print '\t', trimmed_feature_values_df
+
+
+
+
+
 # def draw_target_vs_feature(ax, df, feature, target_feature, feature_types,
 #                            feature_value_colors, top='all', tick_labels=None,
 #                            text_and_line_color='black',
@@ -1316,6 +1077,397 @@ def inspect_data(plot_vars=None, target_feature=None, subplot_kwargs=None,
 #     target = numerical & feature = numerical
 #         Scatter plot of target versus feature
 #     """
+
+# def inspect_data(plot_vars=None, target_feature=None, subplot_kwargs=None,
+#                  fig_kwargs=None, top='all'):
+#     """
+#     Graphs distribution of each variable and its corresponding effect on the
+#     target feature
+#     """
+#     # Replace NaN temporarily with the string 'nan' for visualization
+#     df = df.fillna(value='tmp_nan')
+#
+#
+#     feature_types = _get_feature_types(df)
+#
+#     # Initialize plotted features to all if not provided
+#     if plot_vars is None:
+#         if target_feature:
+#             plot_vars = [key for key in feature_types.keys()
+#                          if key != target_feature]
+#
+#             plot_vars.insert(0, target_feature)
+#         else:
+#             plot_vars = feature_types.keys()
+#
+#     # Get feature value colors
+#     feature_value_colors = \
+#         assign_feature_value_colors(df, plot_vars, feature_types, top=top)
+#
+#     # Calulate plot dimensions
+#     row_count = len(plot_vars)
+#     if target_feature is not None:
+#         # row_count = len(plot_vars)-1
+#         col_count = 2
+#     else:
+#         # row_count = len(plot_vars)
+#         col_count = 1
+#
+#     # Set general settings for individual subplots
+#     default_subplot_kwargs = dict(
+#         title = '',
+#         facecolor = 'white', # fc overrides this so it's not set
+#         alpha =	1.0, # float (0.0 transparent through 1.0 opaque)
+#         frame_on = True, # [ True | False ]
+#         visible = True, # [True | False]
+#         xlabel = '',
+#         xlim = None, #Use with autoscalex_on set to False to constrain subplots
+#         autoscalex_on = True, # Set to False and specify xlim to constrain subplots
+#         xmargin = 0.05, # Percent of range of x data to use to pad around x-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on both left and right. Seems default is 0.05)
+#         xscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
+#         # xticklabels = [], # Can set this externally if desired
+#         # xticks = [], # Can set this externally if desired
+#         ylabel = '',
+#         # ylim = None, # Must be set externally, unlike xlim and autoscalex_on, for similar behavior
+#         autoscaley_on = True,
+#         ymargin = 0.05, # Percent of range of y data to use to pad above the y-axis (Ex: 0-40 range w/ xmargin=0.5 pads an extra 20 on above. Seems default is 0.05)
+#         yscale = 'linear', # ['linear' | 'log' | 'logit' | 'symlog']
+#         # yticklabels = [], # Can set this externally if desired
+#         # yticks = [], # Can set this externally if desired
+#         zorder = None, # Order relative to other elements
+#     )
+#
+#     # Override default subplot kwargs if provided by user
+#     if subplot_kwargs is not None:
+#         for key, value in subplot_kwargs.iteritems():
+#             default_subplot_kwargs[key] = value
+#
+#     # Set default figure parameters
+#     default_fig_kwargs = dict(
+#         # Figure kwargs
+#         nrows=row_count,
+#         ncols=col_count,
+#         sharex=False,
+#         sharey=False,
+#         squeeze=False,
+#         gridspec_kw=None,
+#         # Figure kwargs
+#         figsize=(5, 100),
+#         facecolor='white',
+#         # Subplots kwargs
+#         subplot_kw = default_subplot_kwargs,
+#     )
+#
+#     # Override default figure kwargs if provided by user
+#     if fig_kwargs is not None:
+#         for key, value in fig_kwargs.iteritems():
+#             default_fig_kwargs[key] = value
+#
+#     # Set default text parameters
+#     text_font_size = 12
+#     tick_label_size = text_font_size-3
+#
+#     text_properties = {
+#         'tick_labels': {
+#             'family': 'sans-serif',
+#             'weight': 'normal',
+#             'size': tick_label_size,
+#
+#         }
+#     }
+#
+#     small_text_size = 10
+#
+#     # Set text and line color
+#     grayLevel = 0.4
+#     text_and_line_color = (0.0, 0.0, 0.0, grayLevel)
+#
+#     # Set grid_kwargs
+#     default_grid_kwargs = dict(
+#         color = text_and_line_color
+#     )
+#
+#     # Override with provided grid kwargs
+#     if grid_kwargs is not None:
+#         for key, item in grid_kwargs.iteritems():
+#             default_grid_kwargs[key] = item
+#
+#     # Set padding of axis labels so they don't overlap with tick-labels
+#     label_padding = 0.05
+#
+#     # Initialize plot (Kwarg 'squeeze' used to make output a matrix, even if
+#     # there is only one plot. This makes indexing more consistent.)
+#     fig, sub_axes = plt.subplots(**default_fig_kwargs)
+#
+#     # Get counts of all features
+#     df_counts = df.count()
+#
+#     # Fill figure cells
+#     for row_ind in xrange(row_count):
+#         feature = plot_vars[row_ind]
+#
+#         feature_type = feature_types[feature]
+#
+#         feature_series = df[feature]
+#
+#         non_null_count = df_counts[feature]
+#
+#         # Derive feature distribution plot title
+#         title = '%s:    (%d/%d)' % (feature, non_null_count, len(df))
+#
+#         for col_ind in xrange(col_count):
+#             # Obtain current axis
+#             ax = sub_axes[row_ind, col_ind]
+#
+#             # Fill row with feature distribution if on left edge and response
+#             # of target feature if on right edge
+#             if not col_ind:
+#                 # Graph feature distrubution
+#                 draw_feature_distribution(
+#                     ax, df, feature, feature_types,
+#                     feature_value_colors, text_and_line_color,
+#                     top=top, title=title, text_font_size=text_font_size,
+#                     small_text_size=small_text_size
+#                     )
+#
+#             else:
+#                 if row_ind:
+#                     draw_target_vs_feature(
+#                         ax, df, feature, target_feature, feature_types,
+#                         feature_value_colors=feature_value_colors, top=top,
+#                         tick_labels='',
+#                         text_and_line_color=text_and_line_color,
+#                         text_font_size=text_font_size,
+#                         small_text_size=small_text_size)
+#                 else:
+#                     ax.axis('off')
+#
+#             ax.tick_params(axis=u'both', which=u'both',length=0)
+#
+#     plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
+#                         wspace=None, hspace=0.35)
+
+    # def _get_color_map(self, color_count):
+    #     """
+    #     """
+    #
+    #     if color_map == 'custom':
+    #         indexible_map = ['gray', 'cyan', 'orange', 'magenta', 'lime',
+    #                          'red', 'purple', 'blue', 'yellow', 'black']
+    #     else:
+    #         cmap = mpl_plt.get_cmap(color_map)
+    #
+    #         scalar_map = cmx.ScalarMappable(
+    #             norm=mpl_colors.Normalize(vmin=0, vmax=color_count-1),
+    #             cmap=cmap)
+    #
+    #         indexible_map = scalar_map.to_rgba(color_ind)
+
+# def plot_bar(ax, tick_labels, bar_values, color=None, title='',
+#              text_and_line_color='black', text_font_size=12,
+#              small_text_size=9):
+#     """
+#     """
+#     # # Derive bar positions
+#     # bar_positions = np.arange(len(bar_values))
+#     #
+#     # # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
+#     # bar_kwargs = dict(
+#     #     height=0.8,
+#     #     left=None,
+#     #     color=color,
+#     #     tick_label=tick_labels,
+#     #     zorder=1000,
+#     # )
+#
+#     if len(bar_values.shape) == 1:
+#         bar_values = bar_values.reshape(-1, 1)
+#
+#         color = [color]
+#
+#     bar_positions = np.arange(bar_values.shape[0])[::-1]
+#
+#     # Initialize bottom bar buffer
+#     bottom_bar_buffer = np.zeros(bar_values.shape[0])
+#
+#     # Plot stacked bars for row feature data corresponding to each column feature value
+#     for data_ind in xrange(bar_values.shape[1]):
+#         data = bar_values[:,data_ind]
+#
+#         # Add previous values to current buffer
+#         if data_ind:
+#             bottom_bar_buffer = bottom_bar_buffer + bar_values[:, data_ind-1]
+#
+#         current_colors = color[data_ind]
+#
+#         # Set series-specific parameters
+#         # Set lower value to start bars from
+#         bar_kwargs = dict(
+#             height=0.8,
+#             left=bottom_bar_buffer,
+#             color=current_colors,
+#             tick_label=tick_labels,
+#             zorder=1000,
+#             edgecolor=current_colors
+#         )
+#
+#         ax.barh(bar_positions, data, **bar_kwargs)
+#
+#     # Set left frame attributes
+#     ax.spines['left'].set_linewidth(1.0)
+#     ax.spines['left'].set_color(text_and_line_color)
+#
+#     # Remove all but bottom frame line
+#     ax.spines['right'].set_visible(False)
+#     ax.spines['top'].set_visible(False)
+#     ax.spines['bottom'].set_visible(False)
+#
+#     # Remove ticks but not labels
+#     ax.tick_params(axis=u'both', which=u'both',length=0)
+#
+#     ax.xaxis.grid(True, linestyle='--', linewidth=1)
+#
+#     ax.set_title(title, color=text_and_line_color, size=text_font_size)
+#
+#     # Set y-tick label sizes and colors
+#     for x_tick in ax.xaxis.get_major_ticks():
+#         x_tick.label.set_fontsize(small_text_size)
+#         x_tick.label.set_color(text_and_line_color)
+#
+#     # Set y-tick label sizes and colors
+#     for y_tick in ax.yaxis.get_major_ticks():
+#         y_tick.label.set_fontsize(small_text_size)
+#         y_tick.label.set_color(text_and_line_color)
+# def assign_feature_value_colors(df, feature_list, feature_types, top='all'):
+#     """
+#     """
+#     feature_value_colors = {}
+#
+#     for feature in feature_list:
+#         # Get feature type
+#         feature_type = feature_types[feature]
+#
+#         # Initialize new features
+#         if feature in feature_value_colors:
+#             raise Exception("Feature %s is duplicated"%(feature))
+#         else:
+#             feature_value_colors[feature] = {}
+#
+#         feature_is_numerical = ('categorical' not in feature_type \
+#                              and feature_type != 'id')
+#
+#         # Get feature value order, value counts, and color for each value
+#         if not feature_is_numerical:
+#             # Get feature value counts and sort in ascending order by count
+#             if top=='all':
+#                 sorted_value_count_df = \
+#                     df[feature].value_counts(dropna=False).sort_values(
+#                                                                 ascending=True)
+#             else:
+#                 sorted_value_count_df = \
+#                     df[feature].value_counts(dropna=False).sort_values(
+#                                                 ascending=True).nlargest(top)
+#
+#
+#             # Get feature values
+#             sorted_feature_values = list(sorted_value_count_df.index.values)
+#
+#             # Get number of feature values
+#             feature_value_count = len(sorted_feature_values)
+#
+#             for feature_value_ind, feature_value in \
+#                 enumerate(list(reversed(sorted_feature_values))):
+#                 # feature_value_colors[feature][feature_value] = \
+#                 #     scalar_map.to_rgba(feature_value_ind)
+#
+#
+#                 feature_value_colors[feature][feature_value] = \
+#                     _get_color_val(feature_value_ind, feature_value_count)
+#
+#
+#
+#
+#     return feature_value_colors
+
+
+#
+# def plot_bar(ax, tick_labels, bar_values, color=None, title='',
+#              text_and_line_color='black', text_font_size=12,
+#              small_text_size=9):
+#     """
+#     """
+#     # # Derive bar positions
+#     # bar_positions = np.arange(len(bar_values))
+#     #
+#     # # Set bar kwargs (bottom (bar positions) and width (widths of bars) are the args)
+#     # bar_kwargs = dict(
+#     #     height=0.8,
+#     #     left=None,
+#     #     color=color,
+#     #     tick_label=tick_labels,
+#     #     zorder=1000,
+#     # )
+#
+#     if len(bar_values.shape) == 1:
+#         bar_values = bar_values.reshape(-1, 1)
+#
+#         color = [color]
+#
+#     bar_positions = np.arange(bar_values.shape[0])[::-1]
+#
+#     # Initialize bottom bar buffer
+#     bottom_bar_buffer = np.zeros(bar_values.shape[0])
+#
+#     # Plot stacked bars for row feature data corresponding to each column feature value
+#     for data_ind in xrange(bar_values.shape[1]):
+#         data = bar_values[:,data_ind]
+#
+#         # Add previous values to current buffer
+#         if data_ind:
+#             bottom_bar_buffer = bottom_bar_buffer + bar_values[:, data_ind-1]
+#
+#         current_colors = color[data_ind]
+#
+#         # Set series-specific parameters
+#         # Set lower value to start bars from
+#         bar_kwargs = dict(
+#             height=0.8,
+#             left=bottom_bar_buffer,
+#             color=current_colors,
+#             tick_label=tick_labels,
+#             zorder=1000,
+#             edgecolor=current_colors
+#         )
+#
+#         ax.barh(bar_positions, data, **bar_kwargs)
+#
+#     # Set left frame attributes
+#     ax.spines['left'].set_linewidth(1.0)
+#     ax.spines['left'].set_color(text_and_line_color)
+#
+#     # Remove all but bottom frame line
+#     ax.spines['right'].set_visible(False)
+#     ax.spines['top'].set_visible(False)
+#     ax.spines['bottom'].set_visible(False)
+#
+#     # Remove ticks but not labels
+#     ax.tick_params(axis=u'both', which=u'both',length=0)
+#
+#     ax.xaxis.grid(True, linestyle='--', linewidth=1)
+#
+#     ax.set_title(title, color=text_and_line_color, size=text_font_size)
+#
+#     # Set y-tick label sizes and colors
+#     for x_tick in ax.xaxis.get_major_ticks():
+#         x_tick.label.set_fontsize(small_text_size)
+#         x_tick.label.set_color(text_and_line_color)
+#
+#     # Set y-tick label sizes and colors
+#     for y_tick in ax.yaxis.get_major_ticks():
+#         y_tick.label.set_fontsize(small_text_size)
+#         y_tick.label.set_color(text_and_line_color)
+#
+
 #
 # def draw_feature_distribution(ax, df, feature, feature_types,
 #                               feature_value_colors, text_and_line_color,
