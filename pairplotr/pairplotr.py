@@ -300,6 +300,7 @@ class Inspector(object):
             alpha=1.0,
             antialiased=False,
             color='grey',
+            zorder=1
         )
 
         # Override defaults if user provides kwargs
@@ -425,13 +426,18 @@ class Inspector(object):
 
             ax.barh(bar_positions, data, **bar_kwargs)
 
-    def _draw_hist(self, ax, x, hist_kwargs=None):
+    def _draw_hist(self, ax, x, colors='grey', hist_kwargs=None):
         """
         Draws histogram of on provided axis using the provided data
         """
-        patch_color = 'grey'
+        if type(colors) is not list:
+            colors = [colors]
 
-        # TODO: feed the hist kwargs to top level
+        if type(x) is not list:
+            x = [x]
+
+        # Make base hist kwargs
+        patch_color = 'grey'
         default_hist_kwargs = dict(
             bins=20,
             range=None,
@@ -465,10 +471,55 @@ class Inspector(object):
             for key, value in hist_kwargs.iteritems():
                 default_hist_kwargs[key] = value
 
-        default_hist_kwargs['bins'] = np.linspace(x.min(), x.max(),
-                                                  default_hist_kwargs['bins'])
+        # Find max and min values in all data
+        data_mins = []
+        data_maxs = []
+        for data in x:
+            data_min = data.min()
+            data_max = data.max()
 
-        ax.hist(x, **default_hist_kwargs)
+            data_mins.append(data_min)
+            data_maxs.append(data_max)
+
+        all_data_min = np.min(data_mins)
+        all_data_max = np.max(data_maxs)
+
+        # Set bin bounds for cleaner plots
+        default_hist_kwargs['bins'] = \
+            np.linspace(all_data_min, all_data_max, default_hist_kwargs['bins'])
+
+        for data_series_ind, data_series in enumerate(x):
+            color = colors[data_series_ind]
+
+            default_hist_kwargs['color'] = color
+            default_hist_kwargs['facecolor'] = color
+
+            ax.hist(data_series, **default_hist_kwargs)
+
+        # Collect Patch objects representing bars at the same position
+        bars = {}
+        for bar in ax.patches:
+            # Get current bar position
+            bar_position = bar.get_x()
+
+            # Initialize x-position list in bar dictionary if not present
+            if bar_position not in bars:
+                bars[bar_position] = []
+
+            # Add current bar to collection of bars at that position
+            bars[bar_position].append(bar)
+
+        # Sort bars based on height so smallest is visible
+        for bar_position, bar_group in bars.iteritems():
+            # Sort bars by height order for current bar group at current position
+            if len(bar_group) > 1:
+                # Sort by height
+                bar_group = sorted(bar_group,
+                                   key=lambda x: x.get_height(), reverse=True)
+
+                # Set layer position to current order
+                for bar_ind,bar in enumerate(bar_group):
+                    bar.set_zorder(bar_ind+2)
 
     def inspect_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, top='all',
@@ -654,7 +705,8 @@ class Inspector(object):
                         self._draw_target_vs_feature(
                             ax, feature, target_feature, top=top,
                             text_and_line_color=text_and_line_color,
-                            line_width = line_width, grid_kwargs=grid_kwargs
+                            line_width = line_width, grid_kwargs=grid_kwargs,
+                            hist_kwargs=hist_kwargs
                         )
 
                         # draw_target_vs_feature(
@@ -689,7 +741,7 @@ class Inspector(object):
 
     def _draw_target_vs_feature(self, ax, feature, target_feature, top='all',
                                 text_and_line_color='black', line_width=1.0,
-                                grid_kwargs=None):
+                                grid_kwargs=None, hist_kwargs=None):
         """
         """
         feature_numerical_flags = self.feature_numerical_flags
@@ -703,15 +755,32 @@ class Inspector(object):
                 pass
             else:
                 # Draw target histograms colored by feature category values
-                pass
+                self._draw_categorical_vs_numerical(ax, target_feature, feature,
+                                                    top=top,
+                                                    hist_kwargs=hist_kwargs)
+                # Draw only bottom spine
+                visible_spines = ['bottom']
+                self._set_visible_spines(ax, visible_spines,
+                                         text_and_line_color=text_and_line_color,
+                                         line_width=line_width)
+
+                self._set_grid_lines(ax, 'y', grid_kwargs=grid_kwargs)
+
         else:
             if feature_is_numerical:
                 # Draw feature histograms colored by target category values
-                # Draw uncolored scatter plot
                 hue_feature = target_feature
 
                 self._draw_categorical_vs_numerical(ax, feature, hue_feature,
-                                                    top=top)
+                                                    top=top,
+                                                    hist_kwargs=hist_kwargs)
+                # Draw only bottom spine
+                visible_spines = ['bottom']
+                self._set_visible_spines(ax, visible_spines,
+                                         text_and_line_color=text_and_line_color,
+                                         line_width=line_width)
+
+                self._set_grid_lines(ax, 'y', grid_kwargs=grid_kwargs)
             else:
                 # Draw stacked horizontal bar chart of feature distribution
                 # colored by target category values
@@ -729,9 +798,54 @@ class Inspector(object):
                 self._set_grid_lines(ax, 'x', grid_kwargs=grid_kwargs)
 
 
-    def _draw_categorical_vs_numerical(self, ax, feature, hue_feature, top='all'):
+    def _draw_categorical_vs_numerical(self, ax, feature, hue_feature,
+                                       top='all', hist_kwargs=None):
         """
+        Draws, on the provided axis artist, histograms of the feature colored
+        by each value of the hue feature.
         """
+        df = self.df
+
+        hue_value_colors = self.feature_colors[hue_feature]
+
+        value_counts = self.feature_value_counts
+
+        ordered_hue_values = value_counts[hue_feature].index.values
+
+        if top == 'all':
+            trimmed_ordered_hue_values = ordered_hue_values
+        else:
+            trimmed_ordered_hue_values = ordered_hue_values[:top]
+
+        colors = []
+        data = []
+        for hue_value in trimmed_ordered_hue_values:
+            color = hue_value_colors[hue_value]
+
+            colors.append(color)
+
+            feature_values_for_hue_value = \
+                df[feature][df[hue_feature]==hue_value].values
+
+            data.append(feature_values_for_hue_value)
+
+        self._draw_hist(ax, data, colors=colors, hist_kwargs=hist_kwargs)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     def _draw_categorical_vs_categorical(self, ax, feature, hue_feature,
