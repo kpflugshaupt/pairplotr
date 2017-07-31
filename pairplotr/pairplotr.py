@@ -35,7 +35,7 @@ class Inspector(object):
         self.top = None
 
         # Fill NaN values with fake string
-        self.df.fillna(value='tmp_nan', inplace=True)
+        # self.df.fillna(value='tmp_nan', inplace=True)
 
         # Obtain sorted value count dataframes for each feature
         self._count_feature_values()
@@ -131,7 +131,8 @@ class Inspector(object):
 
         self.feature_value_counts = feature_value_counts
 
-    def _set_feature_value_colors(self, plot_vars, top='all', color_map='jet'):
+    def _set_feature_value_colors(self, plot_vars, top='all',
+                                  color_map='viridis'):
         """
         Chooses colors for feature values with the top counts
         """
@@ -456,7 +457,8 @@ class Inspector(object):
             # Patch kwargs
             color=patch_color,
             edgecolor='white',
-            facecolor=patch_color,
+            #facecolor=None, # Have to comment this out so that it defaults
+                             # to color kwarg
             linewidth=1.0,
             linestyle='-',
             antialiased=None,
@@ -475,55 +477,66 @@ class Inspector(object):
         data_mins = []
         data_maxs = []
         for data in x:
-            data_min = data.min()
-            data_max = data.max()
+            if data.any():
+                data_min = data.min()
+                data_max = data.max()
 
-            data_mins.append(data_min)
-            data_maxs.append(data_max)
+                data_mins.append(data_min)
+                data_maxs.append(data_max)
 
-        all_data_min = np.min(data_mins)
-        all_data_max = np.max(data_maxs)
+        if data_mins and data_maxs:
+            all_data_min = np.min(data_mins)
+            all_data_max = np.max(data_maxs)
 
-        # Set bin bounds for cleaner plots
-        default_hist_kwargs['bins'] = \
-            np.linspace(all_data_min, all_data_max, default_hist_kwargs['bins'])
+            # Set bin bounds for cleaner plots
+            if not default_hist_kwargs['stacked']:
+                default_hist_kwargs['bins'] = \
+                    np.linspace(all_data_min, all_data_max,
+                                default_hist_kwargs['bins'])
 
-        for data_series_ind, data_series in enumerate(x):
-            color = colors[data_series_ind]
+                for data_series_ind, data_series in enumerate(x):
+                    color = colors[data_series_ind]
 
-            default_hist_kwargs['color'] = color
-            default_hist_kwargs['facecolor'] = color
+                    default_hist_kwargs['color'] = color
+                    default_hist_kwargs['facecolor'] = color
 
-            ax.hist(data_series, **default_hist_kwargs)
+                    ax.hist(data_series, **default_hist_kwargs)
+            else:
+                default_hist_kwargs['range'] = [all_data_min, all_data_max]
 
-        # Collect Patch objects representing bars at the same position
-        bars = {}
-        for bar in ax.patches:
-            # Get current bar position
-            bar_position = bar.get_x()
+                default_hist_kwargs['color'] = colors
 
-            # Initialize x-position list in bar dictionary if not present
-            if bar_position not in bars:
-                bars[bar_position] = []
+                ax.hist(x, **default_hist_kwargs)
 
-            # Add current bar to collection of bars at that position
-            bars[bar_position].append(bar)
+            # Collect Patch objects representing bars at the same position
+            bars = {}
+            for bar in ax.patches:
+                # Get current bar position
+                bar_position = bar.get_x()
 
-        # Sort bars based on height so smallest is visible
-        for bar_position, bar_group in bars.iteritems():
-            # Sort bars by height order for current bar group at current position
-            if len(bar_group) > 1:
-                # Sort by height
-                bar_group = sorted(bar_group,
-                                   key=lambda x: x.get_height(), reverse=True)
+                # Initialize x-position list in bar dictionary if not present
+                if bar_position not in bars:
+                    bars[bar_position] = []
 
-                # Set layer position to current order
-                for bar_ind,bar in enumerate(bar_group):
-                    bar.set_zorder(bar_ind+2)
+                # Add current bar to collection of bars at that position
+                bars[bar_position].append(bar)
+
+            # Sort bars based on height so smallest is visible
+            for bar_position, bar_group in bars.iteritems():
+                # Sort bars by height order for current bar group at current position
+                if len(bar_group) > 1:
+                    # Sort by height
+                    bar_group = sorted(bar_group,
+                                       key=lambda x: x.get_height(), reverse=True)
+
+                    # Set layer position to current order
+                    for bar_ind,bar in enumerate(bar_group):
+                        bar.set_zorder(bar_ind+2)
 
     def inspect_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, top='all',
-                     hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None):
+                     hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
+                     color_map='viridis'):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -551,9 +564,11 @@ class Inspector(object):
             target_is_numerical = numerical_flags[target_feature]
 
             if not target_is_numerical:
-                self._set_feature_value_colors([target_feature], top=top)
+                self._set_feature_value_colors([target_feature], top=top,
+                                               color_map=color_map)
             else:
-                self._set_feature_value_colors(plot_vars, top=top)
+                self._set_feature_value_colors(plot_vars, top=top,
+                                               color_map=color_map)
 
         # Calulate plot dimensions
         row_count = len(plot_vars)
@@ -622,11 +637,13 @@ class Inspector(object):
 
             feature_is_numerical = self.feature_numerical_flags[feature]
 
-            if 'tmp_nan' in self.feature_value_counts[feature]:
-                non_null_count = \
-                    df_row_count-self.feature_value_counts[feature]['tmp_nan']
-            else:
-                non_null_count = df_row_count
+            # if 'tmp_nan' in self.feature_value_counts[feature]:
+            #     non_null_count = \
+            #         df_row_count-self.feature_value_counts[feature]['tmp_nan']
+            # else:
+            #     non_null_count = df_row_count
+
+            non_null_count = df_counts[feature]
 
             # Derive feature distribution plot title
             title = '%s:    (%d/%d)' % (feature, non_null_count, df_row_count)
@@ -678,6 +695,8 @@ class Inspector(object):
 
         plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=None, hspace=0.35)
+
+        # plt.close()
 
     def _draw_numerical_vs_numerical(self, ax, feature, target_feature,
                                      scatter_kwargs=None):
@@ -812,29 +831,18 @@ class Inspector(object):
 
             colors.append(color)
 
-            feature_values_for_hue_value = \
-                df[feature][df[hue_feature]==hue_value].values
+            feature_values_for_hue_value_df = \
+                df[feature][df[hue_feature]==hue_value]
 
-            data.append(feature_values_for_hue_value)
+            non_null_values = \
+                feature_values_for_hue_value_df[
+                    feature_values_for_hue_value_df.notnull()].values
+
+            data.append(non_null_values)
+
+            # data.append(feature_values_for_hue_value)
 
         self._draw_hist(ax, data, colors=colors, hist_kwargs=hist_kwargs)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     def _draw_categorical_vs_categorical(self, ax, feature, hue_feature,
                                          top='all'):
@@ -862,12 +870,24 @@ class Inspector(object):
                           dtype=object)
 
         for feature_value_ind, feature_value in enumerate(feature_values):
+            if feature_value is np.nan:
+                where = df[feature] == feature_value
+            else:
+                where = df[feature].isnull()
+
+
+
             hue_data_for_feature_value = \
-                df[hue_feature][df[feature] == feature_value]
+                df[hue_feature][where]
 
             hue_counts_for_feature_value = \
                 hue_data_for_feature_value\
                     .value_counts(dropna=False).sort_values(ascending=False)
+
+            if feature_value is not np.nan:
+                hue_counts_for_feature_value = df[hue_feature][df[feature]==feature_value].value_counts(dropna=False).sort_values(ascending=False)
+            else:
+                hue_counts_for_feature_value = df[hue_feature][df[feature].isnull()].value_counts(dropna=False).sort_values(ascending=False)
 
             found_hue_features = hue_counts_for_feature_value.index.values
 
