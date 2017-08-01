@@ -34,9 +34,6 @@ class Inspector(object):
         # time
         self.top = None
 
-        # Fill NaN values with fake string
-        # self.df.fillna(value='tmp_nan', inplace=True)
-
         # Obtain sorted value count dataframes for each feature
         self._count_feature_values()
 
@@ -238,6 +235,7 @@ class Inspector(object):
                                 "col_count, must be set as a number larger " \
                                 "than or equal to 1.")
 
+
             default_fig_kwargs = dict(
                 # Figure kwargs
                 nrows=row_count,
@@ -247,7 +245,7 @@ class Inspector(object):
                 squeeze=False,
                 gridspec_kw=None,
                 # Figure kwargs
-                figsize=(5, 100),
+                figsize=(10, 8*row_count), #(10, 300)
                 facecolor='white',
                 # Subplots kwargs
                 subplot_kw = default_subplot_kwargs,
@@ -533,10 +531,72 @@ class Inspector(object):
                     for bar_ind,bar in enumerate(bar_group):
                         bar.set_zorder(bar_ind+2)
 
+    # def fast_plot(self, target_feature):
+    #     # target_feature = 'rootznaws'
+    #
+    #     plot_vars = sorted([column for column in self.df.columns if column != target_feature])
+    #
+    #     for feature_ind, feature in enumerate(plot_vars):
+    #         if not feature_ind:
+    #             show_target = True
+    #         else:
+    #             show_target = False
+    #
+    #         self.Inspector(e1_df[[feature, target_feature]]).inspect_data(
+    #             top=10, target_feature=target_feature,
+    #             fig_kwargs={'figsize': (10, 10)}, show_target=show_target
+    #         )
+    #
+    #         plt.show()
+
     def inspect_data(self, plot_vars=None, target_feature=None,
+                     subplot_kwargs=None, fig_kwargs=None, feature_limit=15,
+                     hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
+                     color_map='viridis', show_target=True,
+                     plot_whole_figure=False):
+        """
+        Plots data distributions (histogram for numerical and horizontal bar
+        chart for non-numerical) for each feature alongside the response of
+        target feature (if specified)
+        """
+        plt.close('all')
+
+        plot_vars = sorted([column for column in self.df.columns \
+                            if column != target_feature])
+
+        if not plot_whole_figure:
+            for feature_ind, feature in enumerate(plot_vars):
+                if not feature_ind:
+                    show_target = True
+                else:
+                    show_target = False
+
+                self.inspect_all_data(plot_vars=[feature, target_feature],
+                                      target_feature=target_feature,
+                                      subplot_kwargs=subplot_kwargs,
+                                      fig_kwargs=fig_kwargs,
+                                      top=feature_limit,
+                                      hist_kwargs=hist_kwargs,
+                                      grid_kwargs=grid_kwargs,
+                                      scatter_kwargs=scatter_kwargs,
+                                      color_map=color_map,
+                                      show_target=show_target)
+                plt.show()
+        else:
+            self.inspect_all_data(target_feature=target_feature,
+                                  subplot_kwargs=subplot_kwargs,
+                                  fig_kwargs=fig_kwargs,
+                                  top=feature_limit,
+                                  hist_kwargs=hist_kwargs,
+                                  grid_kwargs=grid_kwargs,
+                                  scatter_kwargs=scatter_kwargs,
+                                  color_map=color_map,
+                                  show_target=show_target)
+
+    def inspect_all_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, top='all',
                      hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
-                     color_map='viridis'):
+                     color_map='viridis', show_target=True, plot_fast=False):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -550,16 +610,26 @@ class Inspector(object):
 
         # Initialize plotted features to all if not provided
         if plot_vars is None:
-            features = feature_types.keys()
+            features = sorted(feature_types.keys())
             if target_feature:
                 plot_vars = [key for key in features
                              if key != target_feature]
 
-                plot_vars.insert(0, target_feature)
+                if show_target:
+                    plot_vars.insert(0, target_feature)
             else:
                 plot_vars = features
+        else:
+            if target_feature:
+                if target_feature in plot_vars:
+                    target_feature_ind = plot_vars.index(target_feature)
 
-        # Get target feature value colors
+                    _ = plot_vars.pop(target_feature_ind)
+
+                    if show_target:
+                        plot_vars.insert(0, target_feature)
+
+        # Get relevant feature value colors
         if target_feature:
             target_is_numerical = numerical_flags[target_feature]
 
@@ -594,6 +664,10 @@ class Inspector(object):
         if fig_kwargs is not None:
             for key, value in fig_kwargs.iteritems():
                 default_fig_kwargs[key] = value
+
+        if not show_target:
+            default_fig_kwargs['figsize']=(default_fig_kwargs['figsize'][0],
+                                           default_fig_kwargs['figsize'][1]/2.0)
 
         # Set default text parameters
         text_font_size = 12
@@ -637,18 +711,13 @@ class Inspector(object):
 
             feature_is_numerical = self.feature_numerical_flags[feature]
 
-            # if 'tmp_nan' in self.feature_value_counts[feature]:
-            #     non_null_count = \
-            #         df_row_count-self.feature_value_counts[feature]['tmp_nan']
-            # else:
-            #     non_null_count = df_row_count
-
             non_null_count = df_counts[feature]
 
             # Derive feature distribution plot title
             title = '%s:    (%d/%d)' % (feature, non_null_count, df_row_count)
 
             for col_ind in xrange(col_count):
+
                 # Obtain current axis
                 ax = sub_axes[row_ind, col_ind]
 
@@ -674,7 +743,17 @@ class Inspector(object):
                             scatter_kwargs=scatter_kwargs
                         )
                     else:
-                        ax.axis('off')
+                        if show_target:
+                            ax.axis('off')
+                        else:
+                            self._draw_target_vs_feature(
+                                ax, feature, target_feature, top=top,
+                                text_and_line_color=text_and_line_color,
+                                line_width = line_width, grid_kwargs=grid_kwargs,
+                                hist_kwargs=hist_kwargs,
+                                scatter_kwargs=scatter_kwargs
+                            )
+
 
                 # Remove ticks
                 ax.tick_params(axis=u'both', which=u'both',length=0)
@@ -692,11 +771,10 @@ class Inspector(object):
                 # Remove ticks but not labels
                 ax.tick_params(axis=u'both', which=u'both',length=0)
 
-
         plt.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=None, hspace=0.35)
 
-        # plt.close()
+        # plt.close(fig)
 
     def _draw_numerical_vs_numerical(self, ax, feature, target_feature,
                                      scatter_kwargs=None):
