@@ -552,7 +552,7 @@ class Inspector(object):
     def inspect_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, feature_limit=15,
                      hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
-                     color_map='viridis', show_target=True,
+                     color_map='viridis', show_target=None,
                      plot_whole_figure=False):
         """
         Plots data distributions (histogram for numerical and horizontal bar
@@ -561,15 +561,17 @@ class Inspector(object):
         """
         plt.close('all')
 
-        plot_vars = sorted([column for column in self.df.columns \
-                            if column != target_feature])
+        if plot_vars is None:
+            plot_vars = sorted([column for column in self.df.columns \
+                                if column != target_feature])
 
         if not plot_whole_figure:
             for feature_ind, feature in enumerate(plot_vars):
-                if not feature_ind:
-                    show_target = True
-                else:
-                    show_target = False
+                if show_target is None:
+                    if not feature_ind:
+                        show_target = True
+                    else:
+                        show_target = False
 
                 self.inspect_all_data(plot_vars=[feature, target_feature],
                                       target_feature=target_feature,
