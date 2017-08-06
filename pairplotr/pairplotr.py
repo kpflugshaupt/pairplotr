@@ -1,5 +1,7 @@
 import inspect
 
+from textwrap import wrap
+
 import matplotlib
 
 import matplotlib.pyplot as plt
@@ -316,7 +318,7 @@ class Inspector(object):
                                    hist_kwargs=None, top='all',
                                    grid_kwargs=None,
                                    text_and_line_color='black',
-                                   line_width=1.0):
+                                   line_width=1.0, max_bar_label_width=20):
         """
         """
         default_color = 'grey'
@@ -337,9 +339,11 @@ class Inspector(object):
         if feature_is_numerical:
             feature_values = df[feature].values
 
-            non_null_values = feature_values[~np.isnan(feature_values)]
+            non_null_mask = ~np.isnan(feature_values)
 
-            if non_null_values.any():
+            if non_null_mask.any():
+                non_null_values = feature_values[non_null_mask]
+
                 self._draw_hist(ax, non_null_values, hist_kwargs=hist_kwargs)
 
                 # Draw only bottom spine
@@ -350,9 +354,30 @@ class Inspector(object):
 
                 self._set_grid_lines(ax, 'y', grid_kwargs=grid_kwargs)
         else:
-            tick_labels = trimmed_value_counts.index.values
+            original_labels = trimmed_value_counts.index.values
 
             bar_values = trimmed_value_counts.values
+
+            tick_labels = []
+            for original_label_ind in xrange(len(original_labels)):
+                original_label = original_labels[original_label_ind]
+
+                # Convert null labels to 'NaN'
+                if pd.isnull(original_label):
+                    new_label = 'NaN'
+                else:
+                    new_label = original_label
+
+
+                if type(new_label) is str:
+                    if len(new_label)>max_bar_label_width:
+                        new_label = new_label[:max_bar_label_width-3]+'...'
+                    else:
+                        new_label = new_label
+                else:
+                    new_label = new_label
+
+                tick_labels.append(new_label)
 
             plot_colors = []
             for feature_value in tick_labels:
@@ -475,7 +500,8 @@ class Inspector(object):
         data_mins = []
         data_maxs = []
         for data in x:
-            if data.any():
+            non_null_mask = ~np.isnan(data)
+            if non_null_mask.any():
                 data_min = data.min()
                 data_max = data.max()
 
@@ -488,9 +514,12 @@ class Inspector(object):
 
             # Set bin bounds for cleaner plots
             if not default_hist_kwargs['stacked']:
-                default_hist_kwargs['bins'] = \
-                    np.linspace(all_data_min, all_data_max,
-                                default_hist_kwargs['bins'])
+                if all_data_min != all_data_max:
+                    default_hist_kwargs['bins'] = \
+                        np.linspace(all_data_min, all_data_max,
+                                    default_hist_kwargs['bins'])
+                else:
+                    default_hist_kwargs['bins'] = None
 
                 for data_series_ind, data_series in enumerate(x):
                     color = colors[data_series_ind]
@@ -552,8 +581,8 @@ class Inspector(object):
     def inspect_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, feature_limit=15,
                      hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
-                     color_map='viridis', show_target=True,
-                     plot_whole_figure=False):
+                     color_map='viridis', show_target=None,
+                     plot_whole_figure=False, max_bar_label_width=20):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -561,17 +590,26 @@ class Inspector(object):
         """
         plt.close('all')
 
-        plot_vars = sorted([column for column in self.df.columns \
-                            if column != target_feature])
+        if plot_vars is None:
+            plot_vars = sorted([column for column in self.df.columns \
+                                if column != target_feature])
 
         if not plot_whole_figure:
             for feature_ind, feature in enumerate(plot_vars):
-                if not feature_ind:
-                    show_target = True
+                if show_target is None:
+                    if not feature_ind:
+                        tmp_show_target = True
+                    else:
+                        tmp_show_target = False
                 else:
-                    show_target = False
+                    tmp_show_target = show_target
 
-                self.inspect_all_data(plot_vars=[feature, target_feature],
+                if target_feature:
+                    tmp_plot_vars = [feature, target_feature]
+                else:
+                    tmp_plot_vars = [feature]
+
+                self.inspect_all_data(plot_vars=tmp_plot_vars,
                                       target_feature=target_feature,
                                       subplot_kwargs=subplot_kwargs,
                                       fig_kwargs=fig_kwargs,
@@ -580,7 +618,8 @@ class Inspector(object):
                                       grid_kwargs=grid_kwargs,
                                       scatter_kwargs=scatter_kwargs,
                                       color_map=color_map,
-                                      show_target=show_target)
+                                      show_target=tmp_show_target,
+                                      max_bar_label_width=max_bar_label_width)
                 plt.show()
         else:
             self.inspect_all_data(target_feature=target_feature,
@@ -591,12 +630,14 @@ class Inspector(object):
                                   grid_kwargs=grid_kwargs,
                                   scatter_kwargs=scatter_kwargs,
                                   color_map=color_map,
-                                  show_target=show_target)
+                                  show_target=show_target,
+                                  max_bar_label_width=max_bar_label_width)
 
     def inspect_all_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, top='all',
                      hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
-                     color_map='viridis', show_target=True, plot_fast=False):
+                     color_map='viridis', show_target=True, plot_fast=False,
+                     max_bar_label_width=20):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -728,7 +769,8 @@ class Inspector(object):
                     self._draw_feature_distribution(
                         ax, feature, top=top, hist_kwargs=hist_kwargs,
                         grid_kwargs=grid_kwargs, line_width=line_width,
-                        text_and_line_color=text_and_line_color
+                        text_and_line_color=text_and_line_color,
+                        max_bar_label_width=max_bar_label_width
                     )
 
                     ax.set_title(title, color=text_and_line_color,
@@ -805,6 +847,10 @@ class Inspector(object):
                                 # non-filled markers, the edgecolors kwarg is
                                 # ignored and forced to 'face' internally.
         )
+
+        if scatter_kwargs is not None:
+            for key, item in scatter_kwargs.iteritems():
+                default_scatter_kwargs[key] = item
 
         df = self.df
 
