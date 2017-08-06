@@ -337,9 +337,11 @@ class Inspector(object):
         if feature_is_numerical:
             feature_values = df[feature].values
 
-            non_null_values = feature_values[~np.isnan(feature_values)]
+            non_null_mask = ~np.isnan(feature_values)
 
-            if non_null_values.any():
+            if non_null_mask.any():
+                non_null_values = feature_values[non_null_mask]
+
                 self._draw_hist(ax, non_null_values, hist_kwargs=hist_kwargs)
 
                 # Draw only bottom spine
@@ -475,7 +477,8 @@ class Inspector(object):
         data_mins = []
         data_maxs = []
         for data in x:
-            if data.any():
+            non_null_mask = ~np.isnan(data)
+            if non_null_mask.any():
                 data_min = data.min()
                 data_max = data.max()
 
@@ -488,9 +491,12 @@ class Inspector(object):
 
             # Set bin bounds for cleaner plots
             if not default_hist_kwargs['stacked']:
-                default_hist_kwargs['bins'] = \
-                    np.linspace(all_data_min, all_data_max,
-                                default_hist_kwargs['bins'])
+                if all_data_min != all_data_max:
+                    default_hist_kwargs['bins'] = \
+                        np.linspace(all_data_min, all_data_max,
+                                    default_hist_kwargs['bins'])
+                else:
+                    default_hist_kwargs['bins'] = None
 
                 for data_series_ind, data_series in enumerate(x):
                     color = colors[data_series_ind]
@@ -569,11 +575,18 @@ class Inspector(object):
             for feature_ind, feature in enumerate(plot_vars):
                 if show_target is None:
                     if not feature_ind:
-                        show_target = True
+                        tmp_show_target = True
                     else:
-                        show_target = False
+                        tmp_show_target = False
+                else:
+                    tmp_show_target = show_target
 
-                self.inspect_all_data(plot_vars=[feature, target_feature],
+                if target_feature:
+                    tmp_plot_vars = [feature, target_feature]
+                else:
+                    tmp_plot_vars = [feature]
+
+                self.inspect_all_data(plot_vars=tmp_plot_vars,
                                       target_feature=target_feature,
                                       subplot_kwargs=subplot_kwargs,
                                       fig_kwargs=fig_kwargs,
@@ -582,7 +595,7 @@ class Inspector(object):
                                       grid_kwargs=grid_kwargs,
                                       scatter_kwargs=scatter_kwargs,
                                       color_map=color_map,
-                                      show_target=show_target)
+                                      show_target=tmp_show_target)
                 plt.show()
         else:
             self.inspect_all_data(target_feature=target_feature,
@@ -807,6 +820,10 @@ class Inspector(object):
                                 # non-filled markers, the edgecolors kwarg is
                                 # ignored and forced to 'face' internally.
         )
+
+        if scatter_kwargs is not None:
+            for key, item in scatter_kwargs.iteritems():
+                default_scatter_kwargs[key] = item
 
         df = self.df
 
