@@ -1,5 +1,7 @@
 import inspect
 
+from textwrap import wrap
+
 import matplotlib
 
 import matplotlib.pyplot as plt
@@ -316,7 +318,7 @@ class Inspector(object):
                                    hist_kwargs=None, top='all',
                                    grid_kwargs=None,
                                    text_and_line_color='black',
-                                   line_width=1.0):
+                                   line_width=1.0, max_bar_label_width=20):
         """
         """
         default_color = 'grey'
@@ -352,9 +354,30 @@ class Inspector(object):
 
                 self._set_grid_lines(ax, 'y', grid_kwargs=grid_kwargs)
         else:
-            tick_labels = trimmed_value_counts.index.values
+            original_labels = trimmed_value_counts.index.values
 
             bar_values = trimmed_value_counts.values
+
+            tick_labels = []
+            for original_label_ind in xrange(len(original_labels)):
+                original_label = original_labels[original_label_ind]
+
+                # Convert null labels to 'NaN'
+                if pd.isnull(original_label):
+                    new_label = 'NaN'
+                else:
+                    new_label = original_label
+
+
+                if type(new_label) is str:
+                    if len(new_label)>max_bar_label_width:
+                        new_label = new_label[:max_bar_label_width-3]+'...'
+                    else:
+                        new_label = new_label
+                else:
+                    new_label = new_label
+
+                tick_labels.append(new_label)
 
             plot_colors = []
             for feature_value in tick_labels:
@@ -559,7 +582,7 @@ class Inspector(object):
                      subplot_kwargs=None, fig_kwargs=None, feature_limit=15,
                      hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
                      color_map='viridis', show_target=None,
-                     plot_whole_figure=False):
+                     plot_whole_figure=False, max_bar_label_width=20):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -595,7 +618,8 @@ class Inspector(object):
                                       grid_kwargs=grid_kwargs,
                                       scatter_kwargs=scatter_kwargs,
                                       color_map=color_map,
-                                      show_target=tmp_show_target)
+                                      show_target=tmp_show_target,
+                                      max_bar_label_width=max_bar_label_width)
                 plt.show()
         else:
             self.inspect_all_data(target_feature=target_feature,
@@ -606,12 +630,14 @@ class Inspector(object):
                                   grid_kwargs=grid_kwargs,
                                   scatter_kwargs=scatter_kwargs,
                                   color_map=color_map,
-                                  show_target=show_target)
+                                  show_target=show_target,
+                                  max_bar_label_width=max_bar_label_width)
 
     def inspect_all_data(self, plot_vars=None, target_feature=None,
                      subplot_kwargs=None, fig_kwargs=None, top='all',
                      hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
-                     color_map='viridis', show_target=True, plot_fast=False):
+                     color_map='viridis', show_target=True, plot_fast=False,
+                     max_bar_label_width=20):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -743,7 +769,8 @@ class Inspector(object):
                     self._draw_feature_distribution(
                         ax, feature, top=top, hist_kwargs=hist_kwargs,
                         grid_kwargs=grid_kwargs, line_width=line_width,
-                        text_and_line_color=text_and_line_color
+                        text_and_line_color=text_and_line_color,
+                        max_bar_label_width=max_bar_label_width
                     )
 
                     ax.set_title(title, color=text_and_line_color,
