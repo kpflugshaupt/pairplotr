@@ -20,7 +20,7 @@ class Inspector(object):
     """
     Class that handles visualizing pandas dataframe data
     """
-    def __init__(self, df):
+    def __init__(self, df, categorical_int_limit=10):
         # Copy of dataframe
         self.df = df.copy()
 
@@ -39,7 +39,7 @@ class Inspector(object):
         # Obtain sorted value count dataframes for each feature
         self._count_feature_values()
 
-        self._set_feature_types()
+        self._set_feature_types(categorical_int_limit=categorical_int_limit)
 
         self._set_feature_numerical_flags()
 
@@ -509,8 +509,16 @@ class Inspector(object):
                 data_maxs.append(data_max)
 
         if data_mins and data_maxs:
-            all_data_min = np.min(data_mins)
-            all_data_max = np.max(data_maxs)
+            if 'range' in default_hist_kwargs:
+                if default_hist_kwargs['range'] is None:
+                    all_data_min = np.min(data_mins)
+                    all_data_max = np.max(data_maxs)
+                else:
+                    all_data_min = default_hist_kwargs['range'][0]
+                    all_data_max = default_hist_kwargs['range'][1]
+            else:
+                all_data_min = np.min(data_mins)
+                all_data_max = np.max(data_maxs)
 
             # Set bin bounds for cleaner plots
             if not default_hist_kwargs['stacked']:
@@ -582,7 +590,9 @@ class Inspector(object):
                      subplot_kwargs=None, fig_kwargs=None, feature_limit=15,
                      hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
                      color_map='viridis', show_target=None,
-                     plot_whole_figure=False, max_bar_label_width=20):
+                     plot_whole_figure=False, max_bar_label_width=20,
+                     show_all_null=False, custom_hist_range=None,
+                     custom_bins=None, bins=20):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -590,8 +600,14 @@ class Inspector(object):
         """
         plt.close('all')
 
+        if show_all_null:
+            df = self.df
+        else:
+            df = self.df.dropna(axis=1, how='all')
+
+
         if plot_vars is None:
-            plot_vars = sorted([column for column in self.df.columns \
+            plot_vars = sorted([column for column in df.columns \
                                 if column != target_feature])
 
         if not plot_whole_figure:
@@ -608,6 +624,33 @@ class Inspector(object):
                     tmp_plot_vars = [feature, target_feature]
                 else:
                     tmp_plot_vars = [feature]
+
+                # Modify range of histogram
+                if type(custom_hist_range) is dict:
+                    if feature in custom_hist_range:
+                        feature_range = custom_hist_range[feature]
+                    else:
+                        feature_range = None
+                else:
+                    feature_range=custom_hist_range
+
+                # Modify number of bins based on feature
+                if type(custom_bins) is dict:
+                    if feature in custom_bins:
+                        feature_bins = custom_bins[feature]
+                    else:
+                        feature_bins = bins
+                else:
+                    feature_bins = bins            
+
+                if type(hist_kwargs) is dict:
+                    hist_kwargs['range'] = feature_range
+                    hist_kwargs['bins'] = feature_bins
+                else:
+                    hist_kwargs = dict(
+                        range = feature_range,
+                        bins = feature_bins
+                    )
 
                 self.inspect_all_data(plot_vars=tmp_plot_vars,
                                       target_feature=target_feature,
