@@ -592,7 +592,7 @@ class Inspector(object):
                      color_map='viridis', show_target=None,
                      plot_whole_figure=False, max_bar_label_width=20,
                      show_all_null=False, custom_hist_range=None,
-                     custom_bins=None, bins=20):
+                     custom_bins=None, bins=20, categorical_order='frequency'):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -604,7 +604,6 @@ class Inspector(object):
             df = self.df
         else:
             df = self.df.dropna(axis=1, how='all')
-
 
         if plot_vars is None:
             plot_vars = sorted([column for column in df.columns \
@@ -641,7 +640,7 @@ class Inspector(object):
                     else:
                         feature_bins = bins
                 else:
-                    feature_bins = bins            
+                    feature_bins = bins
 
                 if type(hist_kwargs) is dict:
                     hist_kwargs['range'] = feature_range
