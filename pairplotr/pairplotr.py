@@ -156,12 +156,22 @@ class Inspector(object):
         """
         Chooses colors for feature values with the top counts
         """
-        # Set custom colors
-        custom_map = ['gray', 'cyan', 'orange', 'magenta', 'lime',
-                         'red', 'purple', 'blue', 'yellow', 'black']
+        # Set matplotlib based on wehther custom colors are specified or not
+        if isinstance(color_map, str):
+            if color_map == 'custom':
+                # Set custom colors
+                custom_map = ['gray', 'cyan', 'orange', 'magenta', 'lime',
+                                 'red', 'purple', 'blue', 'yellow', 'black']
 
-        # Get matplotlib color map
-        mpl_cmap = mpl_plt.get_cmap(color_map)
+                mpl_cmap = None
+            else:
+                # Get matplotlib color map
+                mpl_cmap = mpl_plt.get_cmap(color_map)
+
+        elif isinstance(color_map, list):
+            mpl_cmap = None
+
+            custom_map = color_map
 
         numerical_flags = self.feature_numerical_flags
 
@@ -193,16 +203,22 @@ class Inspector(object):
 
                 feature_value_count = len(sorted_values)
 
-                scalar_map = cmx.ScalarMappable(
-                    norm=mpl_colors.Normalize(
-                        vmin=0,
-                        vmax=feature_value_count-1
-                    ),
-                    cmap=mpl_cmap
-                )
+                if mpl_cmap is not None:
+                    scalar_map = cmx.ScalarMappable(
+                        norm=mpl_colors.Normalize(
+                            vmin=0,
+                            vmax=feature_value_count-1
+                        ),
+                        cmap=mpl_cmap
+                    )
+                else:
+                    scalar_map = custom_map[:feature_value_count]
 
                 for color_ind, feature_value in enumerate(sorted_values):
-                    color = scalar_map.to_rgba(color_ind)
+                    if mpl_cmap is not None:
+                        color = scalar_map.to_rgba(color_ind)
+                    else:
+                        color = scalar_map[color_ind]
 
                     feature_value_colors[feature][feature_value] = color
 
@@ -1051,7 +1067,6 @@ class Inspector(object):
             trimmed_value_counts = value_counts
         else:
             trimmed_value_counts = value_counts.iloc[:top]
-            # trimmed_value_counts = value_counts.nlargest(top)
 
         feature_values = trimmed_value_counts.index.values
 
