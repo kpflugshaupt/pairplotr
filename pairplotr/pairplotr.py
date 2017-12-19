@@ -20,9 +20,13 @@ class Inspector(object):
     """
     Class that handles visualizing pandas dataframe data
     """
-    def __init__(self, df, categorical_int_limit=10):
+    def __init__(self, df, categorical_int_limit=10,
+                 categorical_order='frequency'):
         # Copy of dataframe
         self.df = df.copy()
+
+        # Order of categorical feature values
+        self.categorical_order = categorical_order
 
         self.feature_value_counts = None
 
@@ -116,6 +120,8 @@ class Inspector(object):
         self.feature_types = feature_types
 
     def _count_feature_values(self):
+        categorical_order = self.categorical_order
+
         df = self.df
 
         feature_value_counts = {}
@@ -124,8 +130,23 @@ class Inspector(object):
             if feature not in feature_value_counts:
                 feature_value_counts[feature] = {}
 
-            sorted_df = df[feature].value_counts(dropna=False).sort_values(
-                                                                ascending=False)
+            # Set order
+            if categorical_order == 'descending':
+                sorted_df = \
+                    df[feature].value_counts(dropna=False).sort_index(
+                        ascending=False)
+            elif categorical_order == 'ascending':
+                sorted_df = \
+                    df[feature].value_counts(dropna=False).sort_index(
+                        ascending=True)
+            elif categorical_order == 'frequency':
+                sorted_df = \
+                    df[feature].value_counts(dropna=False).sort_values(
+                        ascending=False)
+            else:
+                raise Exception("'categorical_order' keyword argument %s" \
+                                " not recognized."%(categorical_order))
+
             feature_value_counts[feature] = sorted_df
 
         self.feature_value_counts = feature_value_counts
@@ -147,6 +168,7 @@ class Inspector(object):
         feature_value_counts = self.feature_value_counts
 
         feature_value_colors = {}
+
         for feature in plot_vars:
             feature_specific_value_counts = feature_value_counts[feature]
 
@@ -162,7 +184,10 @@ class Inspector(object):
                     trimmed_value_counts = feature_specific_value_counts
                 else:
                     trimmed_value_counts = \
-                        feature_specific_value_counts.nlargest(top)
+                        feature_specific_value_counts.iloc[:top]
+
+                    # trimmed_value_counts = \
+                    #     feature_specific_value_counts.nlargest(top)
 
                 sorted_values = trimmed_value_counts.index
 
@@ -334,7 +359,7 @@ class Inspector(object):
         if top == 'all':
             trimmed_value_counts = value_counts
         else:
-            trimmed_value_counts = value_counts.nlargest(top)
+            trimmed_value_counts = value_counts.iloc[:top]
 
         if feature_is_numerical:
             feature_values = df[feature].values
@@ -605,7 +630,6 @@ class Inspector(object):
         else:
             df = self.df.dropna(axis=1, how='all')
 
-
         if plot_vars is None:
             plot_vars = sorted([column for column in df.columns \
                                 if column != target_feature])
@@ -641,7 +665,7 @@ class Inspector(object):
                     else:
                         feature_bins = bins
                 else:
-                    feature_bins = bins            
+                    feature_bins = bins
 
                 if type(hist_kwargs) is dict:
                     hist_kwargs['range'] = feature_range
@@ -718,11 +742,11 @@ class Inspector(object):
             target_is_numerical = numerical_flags[target_feature]
 
             if not target_is_numerical:
-                self._set_feature_value_colors([target_feature], top=top,
-                                               color_map=color_map)
+                self._set_feature_value_colors(
+                    [target_feature], top=top, color_map=color_map)
             else:
-                self._set_feature_value_colors(plot_vars, top=top,
-                                               color_map=color_map)
+                self._set_feature_value_colors(
+                    plot_vars, top=top, color_map=color_map)
 
         # Calulate plot dimensions
         row_count = len(plot_vars)
@@ -1026,7 +1050,8 @@ class Inspector(object):
         if top == 'all':
             trimmed_value_counts = value_counts
         else:
-            trimmed_value_counts = value_counts.nlargest(top)
+            trimmed_value_counts = value_counts.iloc[:top]
+            # trimmed_value_counts = value_counts.nlargest(top)
 
         feature_values = trimmed_value_counts.index.values
 
