@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name = "pairplotr",
-    version = "1.2.3.1",
+    version = "1.3",
     author = "Christopher Shymansky",
     author_email = "CMShymansky@gmail.com",
     description = ("Pairplotr is a Python library used to graph combinations " \
