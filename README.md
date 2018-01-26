@@ -2,7 +2,9 @@
 
 # How
 ## Installation
-For now, simply clone the respository and link to the location in your code. 
+Use:
+
+pip install pairplotr
 
 ## Use
 See the [demo](https://nbviewer.jupyter.org/github/JaggedParadigm/pairplotr/blob/master/pairplotr_demo.ipynb) for use of pairplotr.
