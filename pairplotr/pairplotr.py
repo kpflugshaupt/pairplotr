@@ -639,6 +639,34 @@ class Inspector(object):
         chart for non-numerical) for each feature alongside the response of
         target feature (if specified)
         """
+        # Set target feature range
+        if target_feature is not None:
+            if isinstance(custom_hist_range, dict):
+                target_feature_range = \
+                    custom_hist_range.get(target_feature, None)
+            else:
+                target_feature_range = custom_hist_range
+        else:
+            target_feature_range = None
+
+        # Set target feature bins
+        if target_feature is not None:
+            if isinstance(custom_bins, dict):
+                target_feature_bins = \
+                    custom_bins.get(target_feature, bins)
+            else:
+                target_feature_bins = bins
+        else:
+            target_feature_bins = bins
+
+        # Create custom hist_kwargs for target feature if present in
+        # custom_hist_range kwarg
+        target_hist_kwargs = dict(
+            range = target_feature_range,
+            bins = target_feature_bins
+        )
+
+
         plt.close('all')
 
         if show_all_null:
@@ -694,6 +722,7 @@ class Inspector(object):
 
                 self.inspect_all_data(plot_vars=tmp_plot_vars,
                                       target_feature=target_feature,
+                                      target_hist_kwargs=target_hist_kwargs,
                                       subplot_kwargs=subplot_kwargs,
                                       fig_kwargs=fig_kwargs,
                                       top=feature_limit,
@@ -706,6 +735,7 @@ class Inspector(object):
                 plt.show()
         else:
             self.inspect_all_data(target_feature=target_feature,
+                                  target_hist_kwargs=target_hist_kwargs,
                                   subplot_kwargs=subplot_kwargs,
                                   fig_kwargs=fig_kwargs,
                                   top=feature_limit,
@@ -717,10 +747,11 @@ class Inspector(object):
                                   max_bar_label_width=max_bar_label_width)
 
     def inspect_all_data(self, plot_vars=None, target_feature=None,
-                     subplot_kwargs=None, fig_kwargs=None, top='all',
-                     hist_kwargs=None, grid_kwargs=None, scatter_kwargs=None,
-                     color_map='viridis', show_target=True, plot_fast=False,
-                     max_bar_label_width=20):
+                         target_hist_kwargs=None, subplot_kwargs=None,
+                         fig_kwargs=None, top='all', hist_kwargs=None,
+                         grid_kwargs=None, scatter_kwargs=None,
+                         color_map='viridis', show_target=True, plot_fast=False,
+                         max_bar_label_width=20):
         """
         Plots data distributions (histogram for numerical and horizontal bar
         chart for non-numerical) for each feature alongside the response of
@@ -833,24 +864,27 @@ class Inspector(object):
 
             feature_type = feature_types[feature]
 
-            feature_is_numerical = self.feature_numerical_flags[feature]
-
             non_null_count = df_counts[feature]
 
             # Derive feature distribution plot title
             title = '%s:    (%d/%d)' % (feature, non_null_count, df_row_count)
 
             for col_ind in xrange(col_count):
-
                 # Obtain current axis
                 ax = sub_axes[row_ind, col_ind]
 
                 # Fill row with feature distribution if on left edge and response
                 # of target feature if on right edge
                 if not col_ind:
-                    # Graph feature distrubution
+                    # Set hist_kwargs as those for target or current feature
+                    if not row_ind and show_target:
+                        # Graph feature distrubution
+                        tmp_hist_kwargs = target_hist_kwargs
+                    else:
+                        tmp_hist_kwargs = hist_kwargs
+
                     self._draw_feature_distribution(
-                        ax, feature, top=top, hist_kwargs=hist_kwargs,
+                        ax, feature, top=top, hist_kwargs=tmp_hist_kwargs,
                         grid_kwargs=grid_kwargs, line_width=line_width,
                         text_and_line_color=text_and_line_color,
                         max_bar_label_width=max_bar_label_width
@@ -863,8 +897,10 @@ class Inspector(object):
                         self._draw_target_vs_feature(
                             ax, feature, target_feature, top=top,
                             text_and_line_color=text_and_line_color,
-                            line_width = line_width, grid_kwargs=grid_kwargs,
+                            line_width = line_width,
+                            grid_kwargs=grid_kwargs,
                             hist_kwargs=hist_kwargs,
+                            target_hist_kwargs=target_hist_kwargs,
                             scatter_kwargs=scatter_kwargs
                         )
                     else:
@@ -874,11 +910,12 @@ class Inspector(object):
                             self._draw_target_vs_feature(
                                 ax, feature, target_feature, top=top,
                                 text_and_line_color=text_and_line_color,
-                                line_width = line_width, grid_kwargs=grid_kwargs,
+                                line_width = line_width,
+                                grid_kwargs=grid_kwargs,
                                 hist_kwargs=hist_kwargs,
+                                target_hist_kwargs=target_hist_kwargs,
                                 scatter_kwargs=scatter_kwargs
                             )
-
 
                 # Remove ticks
                 ax.tick_params(axis=u'both', which=u'both',length=0)
@@ -943,7 +980,7 @@ class Inspector(object):
     def _draw_target_vs_feature(self, ax, feature, target_feature, top='all',
                                 text_and_line_color='black', line_width=1.0,
                                 grid_kwargs=None, hist_kwargs=None,
-                                scatter_kwargs=None):
+                                target_hist_kwargs=None, scatter_kwargs=None):
         """
         """
         feature_numerical_flags = self.feature_numerical_flags
@@ -971,7 +1008,7 @@ class Inspector(object):
                 # Draw target histograms colored by feature category values
                 self._draw_categorical_vs_numerical(ax, target_feature, feature,
                                                     top=top,
-                                                    hist_kwargs=hist_kwargs)
+                                                    hist_kwargs=target_hist_kwargs)
                 # Draw only bottom spine
                 visible_spines = ['bottom']
                 self._set_visible_spines(ax, visible_spines,
