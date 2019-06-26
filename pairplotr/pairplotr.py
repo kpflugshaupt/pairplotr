@@ -432,9 +432,9 @@ class Inspector(object):
                     else:
                         plot_colors.append(default_color)
 
-                        print "WARNING: Value, ", feature_value, ", "\
+                        print("WARNING: Value, ", feature_value, ", "\
                               "corresponding to feature %s was not found" \
-                              % (feature)
+                              % (feature))
                 else:
                     plot_colors = default_color
 
